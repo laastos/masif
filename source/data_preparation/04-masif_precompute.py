@@ -2,9 +2,8 @@ import sys
 import time
 import os
 import numpy as np
-from IPython.core.debugger import set_trace
-import warnings 
-with warnings.catch_warnings(): 
+import warnings
+with warnings.catch_warnings():
     warnings.filterwarnings("ignore",category=FutureWarning)
 
 # Configuration imports. Config should be in run_args.py
@@ -87,7 +86,7 @@ for ppi_pair_id in ppi_pair_list:
         np.save(my_precomp_dir+pid+'_theta_wrt_center', theta[pid])
         np.save(my_precomp_dir+pid+'_input_feat', input_feat[pid])
         np.save(my_precomp_dir+pid+'_mask', mask[pid])
-        np.save(my_precomp_dir+pid+'_list_indices', neigh_indices[pid])
+        np.save(my_precomp_dir+pid+'_list_indices', np.array(neigh_indices[pid], dtype=object))
         np.save(my_precomp_dir+pid+'_iface_labels', iface_labels[pid])
         # Save x, y, z
         np.save(my_precomp_dir+pid+'_X.npy', verts[pid][:,0])
