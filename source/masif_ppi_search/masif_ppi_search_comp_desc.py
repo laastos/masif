@@ -86,7 +86,7 @@ for count, ppi_pair_id in enumerate(ppi_list):
 
     out_desc_dir = os.path.join(params["desc_dir"], ppi_pair_id)
     if not os.path.exists(os.path.join(out_desc_dir, 'p1_desc_straight.npy')):
-        os.mkdir(out_desc_dir)
+        os.makedirs(out_desc_dir, exist_ok=True)
 #    else:
 #        # Ignore this one as it was already computed.
 #        print('Ignoring descriptor computation for {} as it was already computed'.format(ppi_pair_id))
