@@ -1,5 +1,6 @@
-import tensorflow as tf
-import numpy.matlib 
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
+import numpy.matlib
 import os
 import numpy as np
 from IPython.core.debugger import set_trace
@@ -57,7 +58,7 @@ class ScoreNN:
         model.add(keras.layers.Dense(4,activation=tf.nn.relu,kernel_regularizer=reg))
         model.add(keras.layers.Dense(2, activation='softmax'))
 
-        opt = keras.optimizers.Adam(lr=1e-4)
+        opt = keras.optimizers.Adam(learning_rate=1e-4)
         model.compile(optimizer=opt,loss='sparse_categorical_crossentropy',metrics=['accuracy'])
 
         self.model = model

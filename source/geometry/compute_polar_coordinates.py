@@ -52,7 +52,7 @@ def compute_polar_coordinates(mesh, do_fast=True, radius=12, max_vertices=200):
     wedges = np.stack([rowi, rowj, edgew]).T
 
     G.add_weighted_edges_from(wedges)
-    start = time.clock()
+    start = time.perf_counter()
     if do_fast:
         dists = nx.all_pairs_dijkstra_path_length(G, cutoff=radius)
     else:
@@ -60,7 +60,7 @@ def compute_polar_coordinates(mesh, do_fast=True, radius=12, max_vertices=200):
     d2 = {}
     for key_tuple in dists:
         d2[key_tuple[0]] = key_tuple[1]
-    end = time.clock()
+    end = time.perf_counter()
     print('Dijkstra took {:.2f}s'.format((end-start)))
     D = dict_to_sparse(d2)
 
@@ -77,7 +77,7 @@ def compute_polar_coordinates(mesh, do_fast=True, radius=12, max_vertices=200):
     # Set diagonal elements to a very small value greater than zero..
     D[i,i] = 1e-8
     # Call MDS for all points.
-    mds_start_t = time.clock()
+    mds_start_t = time.perf_counter()
 
     if do_fast:
         theta = compute_theta_all_fast(D, vertices, faces, normals, idx, radius)
@@ -96,7 +96,7 @@ def compute_polar_coordinates(mesh, do_fast=True, radius=12, max_vertices=200):
     #    output_patch_coords(subv, subf, subn, i, neigh_i, theta[i], D[i, :])
     
 
-    mds_end_t = time.clock()
+    mds_end_t = time.perf_counter()
     print('MDS took {:.2f}s'.format((mds_end_t-mds_start_t)))
     
     n = len(d2)
@@ -112,7 +112,7 @@ def compute_polar_coordinates(mesh, do_fast=True, radius=12, max_vertices=200):
         sorted_dists_i = sorted(dists_i.items(), key=lambda kv: kv[1])
         neigh = [int(x[0]) for x in sorted_dists_i[0:max_vertices]] 
         neigh_indices.append(neigh)
-        rho_out[i,:len(neigh)]= np.squeeze(np.asarray(D[i,neigh].todense()))
+        rho_out[i,:len(neigh)]= np.squeeze(np.asarray(D[i,neigh].toarray()))
         theta_out[i,:len(neigh)]= np.squeeze(theta[i][neigh])
         mask_out[i,:len(neigh)] = 1
     # have the angles between 0 and 2*pi
@@ -308,7 +308,7 @@ def compute_theta_all(D, vertices, faces, normals, idx, radius):
         ii = np.where(D[i][neigh] < radius)[1]
         neigh_i = neigh[1][ii]
         pair_dist_i = D[neigh_i,:][:,neigh_i]
-        pair_dist_i = pair_dist_i.todense()
+        pair_dist_i = pair_dist_i.toarray()
 
         # Plane_i: the 2D plane for all neighbors of i
         plane_i = call_mds(mymds, pair_dist_i)
@@ -328,7 +328,7 @@ def compute_theta_all_fast(D, vertices, faces, normals, idx, radius):
     """
     mymds = MDS(n_components=2, n_init=1, eps=0.1, max_iter=50, dissimilarity='precomputed', n_jobs=1)
     all_theta = []
-    start_loop = time.clock()
+    start_loop = time.perf_counter()
     only_mds = 0.0
     for i in range(D.shape[0]):
         # Get the pairs of geodesic distances.
@@ -337,12 +337,12 @@ def compute_theta_all_fast(D, vertices, faces, normals, idx, radius):
         ii = np.where(D[i][neigh] < radius/2)[1]
         neigh_i = neigh[1][ii]
         pair_dist_i = D[neigh_i,:][:,neigh_i]
-        pair_dist_i = pair_dist_i.todense()
+        pair_dist_i = pair_dist_i.toarray()
 
         # Plane_i: the 2D plane for all neighbors of i
-        tic = time.clock()
+        tic = time.perf_counter()
         plane_i = call_mds(mymds, pair_dist_i)
-        toc = time.clock()
+        toc = time.perf_counter()
         only_mds += (toc - tic)
     
         # Compute the angles on the plane.
@@ -352,7 +352,7 @@ def compute_theta_all_fast(D, vertices, faces, normals, idx, radius):
         kk = np.where(D[i][neigh] >= radius/2)[1]
         neigh_k = neigh[1][kk]
         dist_kk = D[neigh_k,:][:,neigh_i]
-        dist_kk = dist_kk.todense()
+        dist_kk = dist_kk.toarray()
         dist_kk[dist_kk == 0] = float('inf')
         closest = np.argmin(dist_kk, axis=1)
         closest = np.squeeze(closest)
@@ -361,7 +361,7 @@ def compute_theta_all_fast(D, vertices, faces, normals, idx, radius):
 
         
         all_theta.append(theta)
-    end_loop = time.clock()
+    end_loop = time.perf_counter()
     print('Only MDS time: {:.2f}s'.format(only_mds))
     print('Full loop time: {:.2f}s'.format(end_loop-start_loop))
     return all_theta

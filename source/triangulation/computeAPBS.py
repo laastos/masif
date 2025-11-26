@@ -21,21 +21,26 @@ def computeAPBS(vertices, pdb_file, tmp_file_base):
     directory = "/".join(fields) + "/"
     filename_base = tmp_file_base.split("/")[-1]
     pdbname = pdb_file.split("/")[-1]
+    # pdb2pqr 3.x syntax: --ff requires uppercase PARSE, --apbs-input= takes the output .in filename
     args = [
         pdb2pqr_bin,
-        "--ff=parse",
+        "--ff=PARSE",
         "--whitespace",
         "--noopt",
-        "--apbs-input",
+        "--apbs-input=" + filename_base + ".in",
         pdbname,
         filename_base,
     ]
     p2 = Popen(args, stdout=PIPE, stderr=PIPE, cwd=directory)
     stdout, stderr = p2.communicate()
+    if p2.returncode != 0:
+        print("PDB2PQR error:", stderr.decode() if stderr else "unknown error")
 
     args = [apbs_bin, filename_base + ".in"]
     p2 = Popen(args, stdout=PIPE, stderr=PIPE, cwd=directory)
     stdout, stderr = p2.communicate()
+    if p2.returncode != 0:
+        print("APBS error:", stderr.decode() if stderr else "unknown error")
 
     vertfile = open(directory + "/" + filename_base + ".csv", "w")
     for vert in vertices:
@@ -50,6 +55,8 @@ def computeAPBS(vertices, pdb_file, tmp_file_base):
     ]
     p2 = Popen(args, stdout=PIPE, stderr=PIPE, cwd=directory)
     stdout, stderr = p2.communicate()
+    if p2.returncode != 0:
+        print("Multivalue error:", stderr.decode() if stderr else "unknown error")
 
     # Read the charge file
     chargefile = open(tmp_file_base + "_out.csv")
@@ -62,7 +69,7 @@ def computeAPBS(vertices, pdb_file, tmp_file_base):
     os.remove(remove_fn+'.csv')
     os.remove(remove_fn+'.dx')
     os.remove(remove_fn+'.in')
-    os.remove(remove_fn+'-input.p')
+    # Note: pdb2pqr 3.x doesn't create -input.p file, so we skip that cleanup
     os.remove(remove_fn+'_out.csv')
 
     return charges

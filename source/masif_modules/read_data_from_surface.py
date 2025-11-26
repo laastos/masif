@@ -95,11 +95,11 @@ def extract_patch_and_coord(
     vix, shape, coord, max_distance, max_vertices, patch_indices=False
 ):
     # Member vertices are nonzero elements
-    i, j = coord[np.int(vix), : coord.shape[1] // 2].nonzero()
+    i, j = coord[int(vix), : coord.shape[1] // 2].nonzero()
 
 
-    # D = np.squeeze(np.asarray(coord[np.int(vix),j].todense()))
-    D = np.squeeze(np.asarray(coord[np.int(vix), : coord.shape[1] // 2].todense()))
+    # D = np.squeeze(np.asarray(coord[int(vix),j].toarray()))
+    D = np.squeeze(np.asarray(coord[int(vix), : coord.shape[1] // 2].toarray()))
     j = np.where((D < max_distance) & (D > 0))[0]
     max_dist_tmp = max_distance
     old_j = len(j)
@@ -122,7 +122,7 @@ def extract_patch_and_coord(
     patch["center"] = np.argmin(D)
 
     j_theta = j + coord.shape[1] // 2
-    theta = np.squeeze(np.asarray(coord[np.int(vix), j_theta].todense()))
+    theta = np.squeeze(np.asarray(coord[int(vix), j_theta].toarray()))
     coord = np.concatenate([D, theta], axis=0)
 
     if patch_indices:

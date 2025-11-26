@@ -1,4 +1,5 @@
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 import numpy as np
 from pathlib import Path
 import glob
@@ -152,7 +153,7 @@ model.add(keras.layers.Dense(8, activation=tf.nn.relu, kernel_regularizer=reg))
 model.add(keras.layers.Dense(4, activation=tf.nn.relu, kernel_regularizer=reg))
 model.add(keras.layers.Dense(2, activation="softmax"))
 
-opt = keras.optimizers.Adam(lr=1e-4)
+opt = keras.optimizers.Adam(learning_rate=1e-4)
 model.compile(
     optimizer=opt, loss="sparse_categorical_crossentropy", metrics=["accuracy"]
 )

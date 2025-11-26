@@ -1,5 +1,6 @@
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 from random import shuffle
 import os
 import glob
@@ -46,7 +47,7 @@ ligand_coord_dir = params["ligand_coords_dir"]
 tfrecords_dir = params["tfrecords_dir"]
 if not os.path.exists(tfrecords_dir):
     os.mkdir(tfrecords_dir)
-with tf.python_io.TFRecordWriter(
+with tf.io.TFRecordWriter(
     os.path.join(tfrecords_dir, "training_data_sequenceSplit_30.tfrecord")
 ) as writer:
     for i, pdb in enumerate(train_pdbs):
@@ -84,7 +85,7 @@ with tf.python_io.TFRecordWriter(
         xyz_coords = np.vstack([X, Y, Z]).T
         tree = spatial.KDTree(xyz_coords)
         pocket_labels = np.zeros(
-            (xyz_coords.shape[0], len(all_ligand_types)), dtype=np.int
+            (xyz_coords.shape[0], len(all_ligand_types)), dtype=np.int64
         )
         # Label points on surface within 3A distance from ligand with corresponding ligand type
         for j, structure_ligand in enumerate(all_ligand_types):
@@ -133,7 +134,7 @@ with tf.python_io.TFRecordWriter(
 
 
 success = 0
-with tf.python_io.TFRecordWriter(
+with tf.io.TFRecordWriter(
     os.path.join(tfrecords_dir, "validation_data_sequenceSplit_30.tfrecord")
 ) as writer:
     for i, pdb in enumerate(val_pdbs):
@@ -169,7 +170,7 @@ with tf.python_io.TFRecordWriter(
         xyz_coords = np.vstack([X, Y, Z]).T
         tree = spatial.KDTree(xyz_coords)
         pocket_labels = np.zeros(
-            (xyz_coords.shape[0], len(all_ligand_types)), dtype=np.int
+            (xyz_coords.shape[0], len(all_ligand_types)), dtype=np.int64
         )
         # Label points on surface within 3A distance from ligand with corresponding ligand type
         for j, structure_ligand in enumerate(all_ligand_types):
@@ -218,7 +219,7 @@ with tf.python_io.TFRecordWriter(
 
 
 success = 0
-with tf.python_io.TFRecordWriter(
+with tf.io.TFRecordWriter(
     os.path.join(tfrecords_dir, "testing_data_sequenceSplit_30.tfrecord")
 ) as writer:
     for i, pdb in enumerate(test_pdbs):
@@ -254,7 +255,7 @@ with tf.python_io.TFRecordWriter(
         xyz_coords = np.vstack([X, Y, Z]).T
         tree = spatial.KDTree(xyz_coords)
         pocket_labels = np.zeros(
-            (xyz_coords.shape[0], len(all_ligand_types)), dtype=np.int
+            (xyz_coords.shape[0], len(all_ligand_types)), dtype=np.int64
         )
         # Label points on surface within 3A distance from ligand with corresponding ligand type
         for j, structure_ligand in enumerate(all_ligand_types):

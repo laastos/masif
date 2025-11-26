@@ -8,7 +8,8 @@ from default_config.masif_opts import masif_opts
 from masif_modules.MaSIF_ligand import MaSIF_ligand
 from masif_modules.read_ligand_tfrecords import _parse_function
 from sklearn.metrics import confusion_matrix
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 
 """
 masif_ligand_train.py: Train MaSIF-ligand. 
