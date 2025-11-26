@@ -83,9 +83,11 @@ RUN python2.7 -m pip install -v 'StrBioInfo==0.2.2' && \
 # ============================================================================
 # Note: TensorFlow 2.x with compat.v1 mode for Python 3.8 compatibility
 # Pin setuptools<71 to avoid strict version parsing issues with some packages
+# Pin protobuf<4 for TensorFlow 2.4.0 compatibility (protobuf 4.x breaks TF's pb2 files)
 RUN pip3 install --upgrade "pip<24" "setuptools<71" && \
     pip3 install \
     tensorflow==2.4.0 \
+    "protobuf<4" \
     numpy \
     scipy \
     matplotlib \
