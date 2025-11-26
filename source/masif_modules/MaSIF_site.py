@@ -136,7 +136,7 @@ class MaSIF_site:
                 mean_gauss_activation
             ):  # computes mean weights for the different gaussians
                 gauss_activations /= (
-                    tf.reduce_sum(gauss_activations, 1, keep_dims=True) + eps
+                    tf.reduce_sum(gauss_activations, 1, keepdims=True) + eps
                 )  # batch_size, n_vertices, n_gauss
 
             gauss_activations = tf.expand_dims(
@@ -166,12 +166,12 @@ class MaSIF_site:
         neg_thresh = 0.0
         pos_labels = self.labels[:, 0]
         n_pos = tf.reduce_sum(pos_labels)
-        pos_scores = tf.multiply(self.logits[:, 0], tf.to_float(pos_labels))
+        pos_scores = tf.multiply(self.logits[:, 0], tf.cast(pos_labels, tf.float32))
         pos_scores = tf.reduce_sum(pos_scores) / n_pos
 
         neg_labels = self.labels[:, 1]
         n_neg = tf.reduce_sum(neg_labels)
-        neg_scores = tf.multiply(self.logits[:, 1], tf.to_float(neg_labels))
+        neg_scores = tf.multiply(self.logits[:, 1], tf.cast(neg_labels, tf.float32))
         neg_scores = tf.reduce_sum(neg_scores) / n_neg
 
         data_loss = neg_scores - pos_scores
@@ -505,7 +505,7 @@ class MaSIF_site:
                     axis=0,
                 )
                 self.data_loss = tf.nn.sigmoid_cross_entropy_with_logits(
-                    labels=tf.to_float(self.eval_labels), logits=self.eval_logits
+                    labels=tf.cast(self.eval_labels, tf.float32), logits=self.eval_logits
                 )
 
                 # eval_logits and eval_scores are reordered according to pos and neg_idx.
