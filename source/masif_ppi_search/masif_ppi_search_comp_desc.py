@@ -232,14 +232,19 @@ for count, ppi_pair_id in enumerate(ppi_list):
         neg_dists = np.sqrt(
             np.sum(np.square(desc1_str[kneg1] - desc2_flip[kneg2]), axis=1)
         )
-        roc_auc = 1.0 - compute_roc_auc(pos_dists, neg_dists)
-        all_pos_dists.append(pos_dists)
-        all_neg_dists.append(neg_dists)
-        logfile.write(
-            "{}: ROC AUC: {:.6f}; num pos: {}; mean_pos: {} ; mean_neg: {} \n".format(
-                ppi_pair_id, roc_auc, len(k1), np.mean(pos_dists), np.mean(neg_dists)
+        # Check for NaN values before computing ROC AUC
+        if np.any(np.isnan(pos_dists)) or np.any(np.isnan(neg_dists)):
+            print("Warning: NaN values in distances for {}, skipping ROC AUC calculation".format(ppi_pair_id))
+            logfile.write("{}: Skipped ROC AUC due to NaN values\n".format(ppi_pair_id))
+        else:
+            roc_auc = 1.0 - compute_roc_auc(pos_dists, neg_dists)
+            all_pos_dists.append(pos_dists)
+            all_neg_dists.append(neg_dists)
+            logfile.write(
+                "{}: ROC AUC: {:.6f}; num pos: {}; mean_pos: {} ; mean_neg: {} \n".format(
+                    ppi_pair_id, roc_auc, len(k1), np.mean(pos_dists), np.mean(neg_dists)
+                )
             )
-        )
         logfile.flush()
 
         np.random.shuffle(idx2)
@@ -249,14 +254,19 @@ for count, ppi_pair_id in enumerate(ppi_list):
         neg_dists = np.sqrt(
             np.sum(np.square(desc1_str[k1] - desc2_flip[kneg2]), axis=1)
         )
-        roc_auc = 1.0 - compute_roc_auc(pos_dists, neg_dists)
-        all_pos_dists_pos_neg.append(pos_dists)
-        all_neg_dists_pos_neg.append(neg_dists)
-        logfile.write(
-            "{}: Pos_neg ROC AUC: {:.6f}; num pos: {}; mean_pos: {} ; mean_neg: {} \n".format(
-                ppi_pair_id, roc_auc, len(k1), np.mean(pos_dists), np.mean(neg_dists)
+        # Check for NaN values before computing ROC AUC
+        if np.any(np.isnan(pos_dists)) or np.any(np.isnan(neg_dists)):
+            print("Warning: NaN values in pos_neg distances for {}, skipping ROC AUC calculation".format(ppi_pair_id))
+            logfile.write("{}: Skipped Pos_neg ROC AUC due to NaN values\n".format(ppi_pair_id))
+        else:
+            roc_auc = 1.0 - compute_roc_auc(pos_dists, neg_dists)
+            all_pos_dists_pos_neg.append(pos_dists)
+            all_neg_dists_pos_neg.append(neg_dists)
+            logfile.write(
+                "{}: Pos_neg ROC AUC: {:.6f}; num pos: {}; mean_pos: {} ; mean_neg: {} \n".format(
+                    ppi_pair_id, roc_auc, len(k1), np.mean(pos_dists), np.mean(neg_dists)
+                )
             )
-        )
         logfile.flush()
 
 
