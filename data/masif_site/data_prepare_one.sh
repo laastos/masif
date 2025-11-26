@@ -2,8 +2,11 @@
 masif_root=$(git rev-parse --show-toplevel)
 masif_source=$masif_root/source/
 masif_matlab=$masif_root/source/matlab_libs/
+masif_data=$masif_root/data/
 export PYTHONPATH=$PYTHONPATH:$masif_source
 export masif_matlab
+# Change to masif_site directory for relative paths to work correctly
+cd $masif_data/masif_site/
 if [ "$1" == "--file" ]
 then
 	echo "Running masif site on $2"
