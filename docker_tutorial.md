@@ -2,30 +2,52 @@
 
 # Docker tutorial for MaSIF.
 
-## Table of Contents: 
+## Table of Contents:
 
 - [Installation](#Installation)
 - [MaSIF-site](#MaSIF-site)
     * [Running MaSIF-site on a single protein from a PDB id or PDB file](#Running-MaSIF-site-on-a-single-protein-from-a-PDB-id)
     * [Reproducing the transient benchmark from the paper](#Reproducing-the-transient-benchmark-from-the-paper)
 - [MaSIF-search](#MaSIF-search)
+    * [GIF Descriptors](#GIF-Descriptors)
 - [MaSIF-PDL1-benchmark](#MaSIF-PDL1-benchmark)
 - [MaSIF-ligand](#MaSIF-ligand)
+    * [Overview](#MaSIF-ligand-Overview)
+    * [Data Preparation](#MaSIF-ligand-Data-Preparation)
+    * [Training](#MaSIF-ligand-Training)
+    * [Evaluation](#MaSIF-ligand-Evaluation)
+- [MaSIF-peptides](#MaSIF-peptides)
+    * [Overview](#MaSIF-peptides-Overview)
+    * [Helix Extraction](#Helix-Extraction)
+    * [Running Predictions](#MaSIF-peptides-Predictions)
+- [Comparison and Benchmark Tools](#Comparison-and-Benchmark-Tools)
+    * [MaSIF-site Comparisons](#MaSIF-site-Comparisons)
+    * [MaSIF-search Comparisons](#MaSIF-search-Comparisons)
+    * [MaSIF-ligand Comparisons](#MaSIF-ligand-Comparisons)
+- [PyMOL Plugin](#PyMOL-Plugin)
+    * [Installation](#PyMOL-Plugin-Installation)
+    * [Surface Features and Visualization](#Surface-Features-and-Visualization)
+    * [Color Schemes](#Color-Schemes)
 - [Building Docker MaSIF image from a Dockerfile](#Dockerfile)
 
 
 
 ## Installation
 
-```
+```bash
 docker pull pablogainza/masif:latest
 docker run -it pablogainza/masif
 ```
-You now start a local container with MaSIF. The first step should be to update the repository to make sure you have the latest version (in case the image has not been update):
 
+You now start a local container with MaSIF. The first step should be to update the repository to make sure you have the latest version (in case the image has not been updated):
+
+```bash
+root@b30c52bcb86f:/masif# git pull
 ```
-root@b30c52bcb86f:/masif# git pull 
-```
+
+Alternatively, build from the included Dockerfile (see [Building Docker MaSIF image from a Dockerfile](#Dockerfile)).
+
+**Note:** This container runs in CPU-only mode. For future GPU support with modern NVIDIA GPUs (Blackwell architecture, CUDA 12+), see `CUDA_UPDATE_PLAN.md`.
 
 ## MaSIF-site
 
@@ -71,7 +93,7 @@ Setting out_surf_dir to output/all_feat_3l/pred_surfaces/
 ...
 Total number of patches for which scores were computed: 2336
 
-GPU time (real time, not actual GPU time): 1.890s
+Inference time: 1.890s
 ```
 
 After this step you can find the predictions in numpy files:
@@ -133,7 +155,7 @@ This process takes about 2 hours, since there are ~60 proteins and they take abo
 
 ### Retraining the neural network from zero. 
 
-In order to retrain the neural network from zero, I strongly recommend using a cluster to precompute the data and a GPU to train. It will take about 5 days in a single CPU to preprocess all the data. Ideally, one would instead use a cluster. However, if a cluster is not available you can precompute all data by running the commands: 
+In order to retrain the neural network from zero, I strongly recommend using a cluster to precompute the data. It will take about 5 days in a single CPU to preprocess all the data. Ideally, one would instead use a cluster. However, if a cluster is not available you can precompute all data by running the commands: 
 
 ```
 cd data/masif_site
@@ -144,8 +166,6 @@ Then, one can train the neural network:
 ```
 ./train_nn.sh
 ```
-
-Please make sure to use a Docker version that supports GPU access. You may have to install tensorflow with support for GPU within the Docker image. 
 
 ## MaSIF-search
 
@@ -185,7 +205,7 @@ cd data/masif_ppi_search/
 ././recompute_data_docking_benchmark.sh
 ```
 
-This should take about 3 minutes per protein on a CPU (about 2 on a GPU). For a total of 100 protein pairs it may take a few hours.
+This should take about 3 minutes per protein. For a total of 100 protein pairs it may take a few hours.
 
 Finally change the directory to the benchmark directory and run the benchmark for a number of decoys K (e.g. 100 or 2000 as in the paper): 
 
@@ -230,14 +250,42 @@ cd data/masif_ppi_search_ub/
 ./recompute_data_docking_benchmark.sh
 ```
 
-This should take about 3 minutes per protein on a CPU (about 2 on a GPU). For a total of 40 protein pairs it may take a few hours.
+This should take about 3 minutes per protein. For a total of 40 protein pairs it may take a few hours.
 
 Finally change the directory to the benchmark directory and run the benchmark for a number of decoys K (e.g. 2000 as in the paper): 
 
-```
+```bash
 cd ../../comparison/masif_ppi_search_ub/masif_descriptors_nn/
 ./second_stage_masif.sh 2000
 ```
+
+### GIF Descriptors
+
+GIF (Geometric Invariant Fingerprints) descriptors provide a faster alternative to neural network-based descriptors. They are based on geometric invariants (Yin et al. PNAS 2009).
+
+#### Computing GIF Descriptors
+
+```bash
+cd data/masif_ppi_search/
+./compute_gif_descriptors.sh lists/ransac_benchmark_list.txt
+```
+
+For a single protein:
+
+```bash
+./compute_gif_descriptors.sh 4ZQK_A
+```
+
+#### Evaluating GIF Descriptors
+
+```bash
+cd comparison/masif_ppi_search/gif_descriptors/
+./second_stage_gif.sh 100
+```
+
+GIF descriptors are faster to compute but may have slightly lower accuracy compared to neural network descriptors. They are useful for:
+- Quick prototyping and testing
+- Large-scale screening where speed is critical
 
 ## MaSIF PDL1 benchmark
 
@@ -310,15 +358,281 @@ You can run this protocol on your protein of interest as well. In general, for i
 
 ## MaSIF-ligand
 
-**This tutorial will be soon available**
+### MaSIF-ligand Overview
 
+MaSIF-ligand predicts ligand binding pockets on protein surfaces. It is trained to identify binding sites for seven common ligands:
 
+| Ligand | Full Name |
+|--------|-----------|
+| ADP | Adenosine Diphosphate |
+| COA | Coenzyme A |
+| FAD | Flavin Adenine Dinucleotide |
+| HEM | Heme |
+| NAD | Nicotinamide Adenine Dinucleotide |
+| NAP | NADP |
+| SAM | S-Adenosyl Methionine |
+
+### MaSIF-ligand Data Preparation
+
+MaSIF-ligand requires Python 2.7 with the SBI library for generating biological assemblies. The data preparation workflow is:
+
+```bash
+cd data/masif_ligand/
+./data_prepare_one.sh 1ABC_A_ADP
+```
+
+The naming convention is `{PDB_ID}_{CHAIN}_{LIGAND}`. For example, `1MBN_A_HEM` for myoglobin chain A with heme.
+
+The preparation script performs:
+1. Downloads the PDB structure
+2. Generates biological assembly (using SBI library, Python 2.7)
+3. Saves ligand coordinates
+4. Extracts and triangulates the molecular surface
+5. Precomputes surface patches
+
+**Note:** The SBI library requires Python 2.7 and is only needed for generating biological assemblies. It is pre-installed in the Docker container.
+
+### MaSIF-ligand Training
+
+To retrain the neural network (requires preprocessed data):
+
+```bash
+cd data/masif_ligand/
+# First prepare all training data
+./data_prepare_all.sh
+
+# Create TensorFlow records
+python $masif_source/masif_ligand/masif_ligand_make_tfrecord.py
+
+# Train the model
+python $masif_source/masif_ligand/masif_ligand_train.py
+```
+
+### MaSIF-ligand Evaluation
+
+To evaluate the model on the test set:
+
+```bash
+cd data/masif_ligand/
+./evaluate_test.sh
+```
+
+This runs predictions on all test proteins and outputs accuracy metrics for each ligand type.
+
+#### Interpreting Results
+
+The evaluation outputs:
+- Per-ligand classification accuracy
+- Confusion matrix showing predicted vs. actual ligand types
+- ROC AUC scores for each ligand class
+
+Results are saved in the `output/` directory.
+
+## MaSIF-peptides
+
+### MaSIF-peptides Overview
+
+MaSIF-peptides extends the MaSIF framework to analyze helical peptide binding sites on protein surfaces. It combines MaSIF-site for interface prediction and MaSIF-search for fingerprint matching of helical peptide binders.
+
+### Helix Extraction
+
+The first step extracts helical regions from protein structures:
+
+```bash
+cd data/masif_peptides/
+./data_extract_helix_one.sh 1ABC_A
+```
+
+This script:
+1. Downloads the PDB structure
+2. Identifies helical regions using DSSP
+3. Extracts and triangulates the molecular surface of helical segments
+
+### Precomputing Patches
+
+After helix extraction, precompute the surface patches:
+
+```bash
+./data_precompute_patches_one.sh 1ABC_A
+```
+
+This generates patches for both MaSIF-site (9Å radius) and MaSIF-search (12Å radius) applications.
+
+### MaSIF-peptides Predictions
+
+Run site predictions:
+
+```bash
+./predict_site.sh 1ABC_A
+```
+
+Compute descriptors for peptide matching:
+
+```bash
+./compute_descriptors.sh 1ABC_A
+```
+
+The workflow produces:
+- Interface probability scores for each surface point
+- Fingerprint descriptors for matching against peptide databases
+
+## Comparison and Benchmark Tools
+
+MaSIF includes comparison scripts for benchmarking against other methods.
+
+### MaSIF-site Comparisons
+
+Compare MaSIF-site with SPPIDER and other interface prediction tools:
+
+```bash
+cd comparison/masif_site/masif_vs_sppider/
+# Contains scripts for comparative analysis
+```
+
+Available comparisons:
+- **SPPIDER**: Sequence-based interface predictor
+- **PSIVER**: Machine learning interface predictor
+- **IntPred**: Integrated interface prediction
+
+### MaSIF-search Comparisons
+
+Compare MaSIF-search with docking tools:
+
+```bash
+cd comparison/masif_ppi_search/
+```
+
+**ZDOCK comparison:**
+
+```bash
+cd zdock/
+./dock_all.sh    # Run ZDOCK on benchmark set
+./eval_all.sh    # Evaluate ZDOCK results
+```
+
+**PatchDock comparison:**
+
+```bash
+cd patchdock/
+./eval_all.sh    # Evaluate PatchDock results
+```
+
+**ZRANK scoring:**
+
+```bash
+cd zrank/
+./run_all.sh     # Re-score docking poses with ZRANK
+```
+
+### MaSIF-ligand Comparisons
+
+Compare with ligand binding site prediction methods:
+
+```bash
+cd comparison/masif_ligand/
+```
+
+Available comparisons:
+- **Kripo**: Pharmacophore-based pocket comparison
+- **ProBiS**: Protein binding site detection
+
+```bash
+./run_probis.sh  # Run ProBiS comparison
+./run_all.sh     # Run all comparisons
+```
+
+## PyMOL Plugin
+
+### PyMOL Plugin Installation
+
+The MaSIF PyMOL plugin enables visualization of molecular surfaces with computed features.
+
+1. Open PyMOL and go to **Plugin → Plugin Manager**
+2. Select the **Install New Plugin** tab
+3. Choose the file `source/masif_pymol_plugin.zip`
+4. Accept the default installation directory
+5. Restart PyMOL
+
+Verify installation in **Plugin Manager** - you should see "masif_pymol_plugin" listed.
+
+### Surface Features and Visualization
+
+Load a surface file:
+
+```
+loadply 4ZQK_A.ply
+```
+
+The plugin creates multiple visualization objects:
+
+| Object Prefix | Feature | Description |
+|---------------|---------|-------------|
+| `vert_` | Vertices | Surface points as spheres |
+| `pb_` | Electrostatics | Poisson-Boltzmann surface charges |
+| `hphobic_` | Hydrophobicity | Kyte-Doolittle hydrophobicity |
+| `si_` | Shape Index | Local curvature descriptor |
+| `ddc_` | DDC | Distance-dependent curvature |
+| `iface_` | Interface | Predicted interface probability |
+| `hbond_` | H-bonds | Hydrogen bond potential |
+| `mesh_` | Mesh | Surface triangulation |
+
+Toggle objects on/off to view different features.
+
+### Color Schemes
+
+**Electrostatics (pb_):**
+- Red: Negative charge
+- White: Neutral
+- Blue: Positive charge
+
+**Hydrophobicity (hphobic_):**
+- Purple/Magenta: Hydrophilic
+- White: Neutral
+- Yellow: Hydrophobic
+
+**Shape Index (si_):**
+- Red: Concave (cup-like)
+- White: Saddle
+- Blue: Convex (dome-like)
+
+**Interface (iface_):**
+- Red: Low interface probability
+- White: Medium
+- Blue: High interface probability
+
+### Additional Commands
+
+Load interface silhouette (boundary of predicted interface):
+
+```
+loadgiface 4ZQK_A.ply
+```
+
+Load dot representation:
+
+```
+loaddots 4ZQK_A.ply
+```
 
 ## Dockerfile
 
-To build a Docker MaSIF image from a Dockerfile run the following steps: 
+### Building from Source
 
+To build a Docker MaSIF image from the included Dockerfile:
+
+```bash
+cd docker/
+docker build -t masif .
 ```
-git clone https://github.com/LPDI-EPFL/masif-dockerfile
-docker build -t masif_docker . 
-```
+
+This builds a complete image with:
+- Ubuntu 18.04 base
+- Python 2.7 + 3.6 dual environment
+- All scientific tools (APBS, MSMS, Reduce, PDB2PQR)
+- TensorFlow 1.12.0
+- SBI library for MaSIF-ligand
+- Pre-trained models for all applications
+
+Build time is approximately 15-30 minutes.
+
+**Note:** This is a CPU-only image. For GPU support with modern NVIDIA GPUs, see `CUDA_UPDATE_PLAN.md` for future implementation plans.

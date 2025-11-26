@@ -98,7 +98,8 @@ RUN pip3 install --upgrade "pip<24" "setuptools<71" && \
     open3d==0.13.0 \
     dask \
     packaging \
-    plyfile
+    plyfile \
+    git+https://github.com/structuralbioinformatics/SBI.git
 
 # ============================================================================
 # 4. Install MSMS (Molecular Surface Computation)
