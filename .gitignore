@@ -14,6 +14,9 @@ data/masif_site/exelogs
 *.npy
 *.npz
 checkpoint
+# But include checkpoint files in model directories (needed for TensorFlow)
+!**/model_data/checkpoint
+!**/nn_models/**/checkpoint
 data/**/cache/
 **/obsolete/*
 .ipynb_checkpoints
