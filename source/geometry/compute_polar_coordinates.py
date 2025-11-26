@@ -298,7 +298,7 @@ def call_mds(mds_obj, pair_dist):
     return mds_obj.fit_transform(pair_dist)
 
 def compute_theta_all(D, vertices, faces, normals, idx, radius):
-    mymds = MDS(n_components=2, n_init=1, max_iter=50, dissimilarity='precomputed', n_jobs=10)
+    mymds = MDS(n_components=2, n_init=1, max_iter=50, dissimilarity='precomputed', n_jobs=10, normalized_stress=False)
     all_theta = []
     for i in range(D.shape[0]):
         if i % 100 == 0:
@@ -326,7 +326,7 @@ def compute_theta_all_fast(D, vertices, faces, normals, idx, radius):
         scaling. Then, for points farther than radius/2, the shortest line to the center is used. 
         This speeds up the method by a factor of about 100.
     """
-    mymds = MDS(n_components=2, n_init=1, eps=0.1, max_iter=50, dissimilarity='precomputed', n_jobs=1)
+    mymds = MDS(n_components=2, n_init=1, eps=0.1, max_iter=50, dissimilarity='precomputed', n_jobs=1, normalized_stress=False)
     all_theta = []
     start_loop = time.perf_counter()
     only_mds = 0.0
