@@ -2,6 +2,15 @@ import tensorflow.compat.v1 as tf
 tf.disable_v2_behavior()
 import numpy as np
 
+# TF 2.x compatibility: Replace removed tf.contrib functions
+def xavier_initializer():
+    """Replacement for xavier_initializer()"""
+    return tf.keras.initializers.GlorotUniform()
+
+def fully_connected(inputs, num_outputs, activation_fn=tf.nn.relu):
+    """Replacement for fully_connected()"""
+    return tf.layers.dense(inputs, num_outputs, activation=activation_fn)
+
 
 class MaSIF_ligand:
 
@@ -228,7 +237,7 @@ class MaSIF_ligand:
                             self.n_thetas * self.n_rhos,
                             self.n_thetas * self.n_rhos,
                         ],
-                        initializer=tf.contrib.layers.xavier_initializer(),
+                        initializer=xavier_initializer(),
                     )
 
                     self.global_desc_1.append(
@@ -254,7 +263,7 @@ class MaSIF_ligand:
                 )
 
                 # refine global desc with MLP
-                self.global_desc_1 = tf.contrib.layers.fully_connected(
+                self.global_desc_1 = fully_connected(
                     self.global_desc_1,
                     self.n_thetas * self.n_rhos,
                     activation_fn=tf.nn.relu,
@@ -264,10 +273,10 @@ class MaSIF_ligand:
                 ) / tf.cast(tf.shape(self.global_desc_1)[0], tf.float32)
                 self.global_desc_1 = tf.reshape(self.global_desc_1, [1, -1])
                 self.global_desc_1 = tf.nn.dropout(self.global_desc_1, self.keep_prob)
-                self.global_desc_1 = tf.contrib.layers.fully_connected(
+                self.global_desc_1 = fully_connected(
                     self.global_desc_1, 64, activation_fn=tf.nn.relu
                 )
-                self.logits = tf.contrib.layers.fully_connected(
+                self.logits = fully_connected(
                     self.global_desc_1, self.n_ligands, activation_fn=tf.identity
                 )
                 # compute data loss

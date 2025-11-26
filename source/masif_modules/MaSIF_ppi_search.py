@@ -2,6 +2,15 @@ import tensorflow.compat.v1 as tf
 tf.disable_v2_behavior()
 import numpy as np
 
+# TF 2.x compatibility: Replace removed tf.contrib functions
+def xavier_initializer():
+    """Replacement for xavier_initializer()"""
+    return tf.keras.initializers.GlorotUniform()
+
+def fully_connected(inputs, num_outputs, activation_fn=tf.nn.relu):
+    """Replacement for fully_connected()"""
+    return tf.layers.dense(inputs, num_outputs, activation=activation_fn)
+
 
 class MaSIF_ppi_search:
 
@@ -268,7 +277,7 @@ class MaSIF_ppi_search:
                             self.n_thetas * self.n_rhos,
                             self.n_thetas * self.n_rhos,
                         ],
-                        initializer=tf.contrib.layers.xavier_initializer(),
+                        initializer=xavier_initializer(),
                     )
 
                     desc = self.inference(
@@ -293,7 +302,7 @@ class MaSIF_ppi_search:
                 )
 
                 # Refine global_desc with a FC layer.
-                self.global_desc = tf.contrib.layers.fully_connected(
+                self.global_desc = fully_connected(
                     self.global_desc,
                     self.n_thetas * self.n_rhos,
                     activation_fn=tf.identity,

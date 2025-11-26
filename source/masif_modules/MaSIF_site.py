@@ -2,6 +2,15 @@ import tensorflow.compat.v1 as tf
 tf.disable_v2_behavior()
 import numpy as np
 
+# TF 2.x compatibility: Replace removed tf.contrib functions
+def xavier_initializer():
+    """Replacement for xavier_initializer()"""
+    return tf.keras.initializers.GlorotUniform()
+
+def fully_connected(inputs, num_outputs, activation_fn=tf.nn.relu):
+    """Replacement for fully_connected()"""
+    return tf.layers.dense(inputs, num_outputs, activation=activation_fn)
+
 
 class MaSIF_site:
 
@@ -294,7 +303,7 @@ class MaSIF_site:
                             self.n_thetas * self.n_rhos,
                             self.n_thetas * self.n_rhos,
                         ],
-                        initializer=tf.contrib.layers.xavier_initializer(),
+                        initializer=xavier_initializer(),
                     )
 
                     rho_coords = self.rho_coords
@@ -321,12 +330,12 @@ class MaSIF_site:
                 self.global_desc = tf.reshape(
                     self.global_desc, [-1, self.n_thetas * self.n_rhos * self.n_feat]
                 )
-                self.global_desc = tf.contrib.layers.fully_connected(
+                self.global_desc = fully_connected(
                     self.global_desc,
                     self.n_thetas * self.n_rhos,
                     activation_fn=tf.nn.relu,
                 )
-                self.global_desc = tf.contrib.layers.fully_connected(
+                self.global_desc = fully_connected(
                     self.global_desc, self.n_feat, activation_fn=tf.nn.relu
                 )
 
@@ -342,7 +351,7 @@ class MaSIF_site:
                             self.n_feat * self.n_thetas * self.n_rhos,
                             self.n_thetas * self.n_rhos * self.n_feat,
                         ],
-                        initializer=tf.contrib.layers.xavier_initializer(),
+                        initializer=xavier_initializer(),
                     )
                     b_conv_l2 = tf.Variable(
                         tf.zeros([self.n_thetas * self.n_rhos * self.n_feat]),
@@ -382,7 +391,7 @@ class MaSIF_site:
                             self.n_thetas * self.n_rhos * self.n_feat,
                             self.n_thetas * self.n_rhos * self.n_feat,
                         ],
-                        initializer=tf.contrib.layers.xavier_initializer(),
+                        initializer=xavier_initializer(),
                     )
                     b_conv_l3 = tf.Variable(
                         tf.zeros([self.n_thetas * self.n_rhos * self.n_feat]),
@@ -419,7 +428,7 @@ class MaSIF_site:
                             self.n_thetas * self.n_rhos * self.n_thetas * self.n_rhos,
                             self.n_thetas * self.n_rhos * self.n_thetas * self.n_rhos,
                         ],
-                        initializer=tf.contrib.layers.xavier_initializer(),
+                        initializer=xavier_initializer(),
                     )
                     b_conv_l4 = tf.Variable(
                         tf.zeros(
@@ -451,12 +460,12 @@ class MaSIF_site:
                     self.global_desc = tf.reduce_max(self.global_desc, axis=2)
                     self.global_desc_shape = tf.shape(self.global_desc)
                 # refine global desc with MLP
-                self.global_desc = tf.contrib.layers.fully_connected(
+                self.global_desc = fully_connected(
                     self.global_desc, self.n_thetas, activation_fn=tf.nn.relu
                 )
 
                 # self.labels = tf.expand_dims(self.labels, axis=0)
-                self.logits = tf.contrib.layers.fully_connected(
+                self.logits = fully_connected(
                     self.global_desc, self.n_labels, activation_fn=tf.identity
                 )
                 # self.logits = tf.expand_dims(self.logits, axis=0)
