@@ -106,7 +106,7 @@ for count, ppi_pair_id in enumerate(ppi_list):
             labels = np.load(in_dir + "p1" + "_sc_labels.npy")
             mylabels = labels[0]
             labels = np.median(mylabels, axis=1)
-        except:# Exception, e:
+        except Exception as e:
             print('Could not open '+in_dir+'p1'+'_sc_labels.npy: '+str(e))
             continue
         print("Number of vertices: {}".format(len(labels)))
@@ -148,7 +148,9 @@ for count, ppi_pair_id in enumerate(ppi_list):
     pid = "p1"
     try:
         p1_rho_wrt_center = np.load(in_dir + pid + "_rho_wrt_center.npy")
-    except:
+    except Exception as e:
+        print("Could not load precomputed data for {}: {}".format(ppi_pair_id, str(e)))
+        print("Please run data preparation first: ./data_prepare_one.sh {}".format(ppi_pair_id))
         continue
     p1_theta_wrt_center = np.load(in_dir + pid + "_theta_wrt_center.npy")
     p1_input_feat = np.load(in_dir + pid + "_input_feat.npy")
