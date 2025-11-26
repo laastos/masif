@@ -4,8 +4,8 @@ import numpy as np
 
 # TF 2.x compatibility: Replace removed tf.contrib functions
 def xavier_initializer():
-    """Replacement for xavier_initializer()"""
-    return tf.keras.initializers.GlorotUniform()
+    """Replacement for tf.contrib.layers.xavier_initializer()"""
+    return tf.initializers.glorot_uniform()
 
 def fully_connected(inputs, num_outputs, activation_fn=tf.nn.relu):
     """Replacement for fully_connected()"""
