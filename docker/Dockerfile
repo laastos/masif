@@ -42,44 +42,18 @@ RUN apt-get update && apt-get install -y \
     liblapack-dev \
     libtbb-dev \
     nlohmann-json3-dev \
-    python2.7 \
-    python2.7-dev \
     python3.8 \
     python3.8-dev \
     python3-pip \
     software-properties-common \
     && rm -rf /var/lib/apt/lists/*
 
-# Install pip for Python 2.7 (python-pip not available in Ubuntu 20.04)
-RUN curl https://bootstrap.pypa.io/pip/2.7/get-pip.py -o /tmp/get-pip.py && \
-    python2.7 /tmp/get-pip.py && \
-    rm /tmp/get-pip.py
-
-# Set Python alternatives
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python2.7 1 && \
-    update-alternatives --install /usr/bin/python python /usr/bin/python3.8 2 && \
+# Set Python 3.8 as default
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.8 1 && \
     update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1
 
 # ============================================================================
-# 2. Install Python 2.7 packages (required for MaSIF-ligand SBI library)
-# ============================================================================
-# Use python2.7 -m pip to ensure we're using Python 2.7's pip, not Python 3's
-# Note: Ubuntu 20.04 uses python2.7, not python2
-RUN python2.7 -m pip install --upgrade pip setuptools && \
-    python2.7 -m pip install \
-    numpy \
-    scipy \
-    biopython==1.76
-
-# Install SBI library for biological assembly generation (MaSIF-ligand)
-# PyPI versions 0.2.1 and 0.2.2 support Python 2.7 (GitHub master has been updated to Python 3 only)
-# Install from PyPI, not GitHub
-RUN python2.7 -m pip install -v 'StrBioInfo==0.2.2' && \
-    cd / && \
-    python2.7 -c "from SBI.structure import PDB; print('SBI installed successfully')"
-
-# ============================================================================
-# 3. Install Python 3.8 packages
+# 2. Install Python 3.8 packages
 # ============================================================================
 # Note: TensorFlow 2.x with compat.v1 mode for Python 3.8 compatibility
 # Pin setuptools<71 to avoid strict version parsing issues with some packages
@@ -99,7 +73,7 @@ RUN pip3 install --upgrade "pip<24" "setuptools<71" && \
     dask \
     packaging \
     plyfile \
-    git+https://github.com/structuralbioinformatics/SBI.git
+    SBILib
 
 # ============================================================================
 # 4. Install MSMS (Molecular Surface Computation)

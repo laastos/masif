@@ -2,7 +2,7 @@ import os
 import numpy as np
 import sys
 
-from SBI.structure import PDB
+from SBILib.structure import PDB
 from default_config.masif_opts import masif_opts
 
 in_fields = sys.argv[1].split("_")
