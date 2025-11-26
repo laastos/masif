@@ -88,7 +88,7 @@ RUN pip3 install --upgrade "pip<24" "setuptools<71" && \
     pip3 install \
     tensorflow==2.4.0 \
     "protobuf<4" \
-    numpy \
+    "numpy<1.24" \
     scipy \
     matplotlib \
     ipython \
