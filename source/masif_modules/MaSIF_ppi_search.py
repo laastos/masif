@@ -7,9 +7,30 @@ def xavier_initializer():
     """Replacement for tf.contrib.layers.xavier_initializer()"""
     return tf.initializers.glorot_uniform()
 
+# Counter for fully_connected layer naming to match tf.contrib.layers checkpoint names
+_fully_connected_counter = [0]
+
 def fully_connected(inputs, num_outputs, activation_fn=tf.nn.relu):
-    """Replacement for fully_connected()"""
-    return tf.layers.dense(inputs, num_outputs, activation=activation_fn)
+    """
+    Replacement for tf.contrib.layers.fully_connected() that maintains
+    checkpoint compatibility by using the same variable naming convention.
+    """
+    count = _fully_connected_counter[0]
+    _fully_connected_counter[0] += 1
+
+    # tf.contrib.layers.fully_connected uses 'fully_connected', 'fully_connected_1', etc.
+    scope_name = 'fully_connected' if count == 0 else f'fully_connected_{count}'
+
+    with tf.variable_scope(scope_name):
+        input_dim = inputs.get_shape().as_list()[-1]
+        weights = tf.get_variable('weights', [input_dim, num_outputs],
+                                  initializer=tf.initializers.glorot_uniform())
+        biases = tf.get_variable('biases', [num_outputs],
+                                 initializer=tf.zeros_initializer())
+        output = tf.matmul(inputs, weights) + biases
+        if activation_fn is not None:
+            output = activation_fn(output)
+        return output
 
 
 class MaSIF_ppi_search:
