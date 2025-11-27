@@ -269,17 +269,37 @@ loaddots 4ZQK_A.ply
 
 ### Plugin Not Loading
 
-1. **Check installation path**:
+1. **Regenerate the zip file** (if you updated the plugin):
+   ```bash
+   cd masif/source/
+   zip -r masif_pymol_plugin.zip masif_pymol_plugin/
+   ```
+   Then reinstall in PyMOL.
+
+2. **Check installation path**:
    ```
    # In PyMOL
    import sys
    print(sys.path)
    ```
 
-2. **Add plugin directory manually**:
+3. **Add plugin directory manually**:
    - Go to Plugin Manager → Settings
    - Add: `masif/source/masif_pymol_plugin/`
    - Restart PyMOL
+
+### "No module named 'loadPLY'" Error
+
+This error occurs with older versions of the plugin that used Python 2 style imports.
+
+**Solution**: Update to the latest version which uses Python 3 relative imports:
+```bash
+cd masif/
+git pull  # Get latest fixes
+cd source/
+zip -r masif_pymol_plugin.zip masif_pymol_plugin/
+```
+Then reinstall the plugin in PyMOL.
 
 ### "loadply" Command Not Found
 
