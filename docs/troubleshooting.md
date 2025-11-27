@@ -455,7 +455,7 @@ sudo apt-get install -y nvidia-container-toolkit
 sudo systemctl restart docker
 
 # Test
-docker run --gpus all nvidia/cuda:10.0-base nvidia-smi
+docker run --gpus all nvidia/cuda:12.6.3-base-ubuntu24.04 nvidia-smi
 ```
 
 ### Docker Volume Issues
@@ -568,9 +568,9 @@ When opening a GitHub issue, include:
 
 ```markdown
 ## Environment
-- OS: Ubuntu 20.04
-- Python: 3.6.9
-- TensorFlow: 1.9.0
+- OS: Ubuntu 24.04
+- Python: 3.12
+- TensorFlow: 2.16.2
 - GPU: NVIDIA RTX 3080 (if applicable)
 - Docker: Yes/No
 

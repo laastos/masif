@@ -9,7 +9,7 @@ MaSIF is a computational framework that uses geometric deep learning to decipher
 ### Getting Started
 - [Installation Guide](installation.md) - System requirements, dependencies, and setup instructions
 - [Quick Start Tutorial](quickstart.md) - Run your first MaSIF analysis in minutes
-- [Docker Setup](docker.md) - Simplified installation using Docker containers (CPU-only, with helper commands)
+- [Docker Setup](docker.md) - Simplified installation using Docker containers (GPU-enabled with CUDA 12.6)
 
 ### Applications
 - [MaSIF-site](applications/masif-site.md) - Protein-protein interaction site prediction

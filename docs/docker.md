@@ -429,8 +429,15 @@ docker run -it masif:custom
 
 ### Dockerfile Structure Overview
 
-The MaSIF Dockerfile (v3.0) includes these main sections:
+The MaSIF Dockerfile (v3.0) uses a **multi-stage build** to handle PyMesh compilation:
 
+**Stage 1: PyMesh Builder (Ubuntu 22.04)**
+- Uses Ubuntu 22.04 with GCC 11 (avoids GCC 13+ incompatibilities in PyMesh's bundled libraries)
+- Python 3.12 from deadsnakes PPA for wheel compatibility
+- Patches: draco headers, pybind11 upgrade, mmg linker workaround
+- Output: `pymesh2-0.3-cp312-cp312-linux_x86_64.whl`
+
+**Stage 2: Final Container (Ubuntu 24.04 + CUDA 12.6)**
 1. **Base**: NVIDIA CUDA 12.6.3 on Ubuntu 24.04
 2. **System dependencies**: Build tools, libraries
 3. **Python virtual environment**: Python 3.12 venv (AlphaFold3 pattern)
@@ -440,7 +447,7 @@ The MaSIF Dockerfile (v3.0) includes these main sections:
 7. **APBS**: Electrostatics calculation (v3.4.1)
 8. **PDB2PQR**: PDB to PQR conversion (pip)
 9. **Reduce**: Protonation
-10. **PyMesh**: Mesh operations
+10. **PyMesh**: Pre-built wheel from Stage 1
 11. **MaSIF repository**: Cloned from GitHub
 12. **Helper scripts**: masif-site, masif-search, masif-ligand, masif-peptides
 
