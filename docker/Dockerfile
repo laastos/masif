@@ -131,7 +131,7 @@ ENV PATH="/masif_venv/bin:$PATH"
 # ============================================================================
 RUN pip install --upgrade pip setuptools wheel && \
     pip install \
-    "tensorflow[and-cuda]==2.16.2" \
+    "tensorflow[and-cuda]==2.18.0" \
     "numpy<2.0" \
     scipy \
     matplotlib \
@@ -146,9 +146,9 @@ RUN pip install --upgrade pip setuptools wheel && \
     SBILib
 
 # ============================================================================
-# 4. GPU Environment Variables for TensorFlow 2.16 with bundled CUDA
+# 4. GPU Environment Variables for TensorFlow 2.18 with bundled CUDA
 # ============================================================================
-# TensorFlow 2.16.2[and-cuda] bundles CUDA 12.3, cuDNN 8.9, and other libraries.
+# TensorFlow 2.18.0[and-cuda] bundles CUDA 12.5, cuDNN 9.x, and other libraries.
 # These are installed in the site-packages/nvidia/ directory.
 # We set LD_LIBRARY_PATH to ensure TensorFlow finds its bundled libraries.
 #
@@ -158,14 +158,26 @@ RUN pip install --upgrade pip setuptools wheel && \
 # - TF_ENABLE_ONEDNN_OPTS: Disable oneDNN for consistent results
 # - NVIDIA_VISIBLE_DEVICES: Allow nvidia-container-toolkit to pass GPU access
 # - NVIDIA_DRIVER_CAPABILITIES: Request compute and utility capabilities
+# Core TensorFlow GPU settings
 ENV TF_FORCE_GPU_ALLOW_GROWTH=true
 ENV TF_CPP_MIN_LOG_LEVEL=2
 ENV TF_ENABLE_ONEDNN_OPTS=0
+
+# NVIDIA container toolkit settings
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
+# XLA and CUDA settings for Blackwell GPU compatibility (Driver 580+)
+# Disable XLA JIT compilation which can cause issues with newer architectures
+ENV TF_XLA_FLAGS="--tf_xla_auto_jit=-1"
+ENV XLA_FLAGS="--xla_gpu_enable_triton_gemm=false"
+
+# CUDA settings for driver compatibility
+ENV CUDA_CACHE_DISABLE=1
+ENV TF_GPU_ALLOCATOR=cuda_malloc_async
+
 # Set LD_LIBRARY_PATH to TensorFlow's bundled CUDA libraries
-# This ensures TensorFlow uses its own CUDA 12.3 instead of system CUDA
+# This ensures TensorFlow uses its own CUDA 12.5 instead of system CUDA
 ENV LD_LIBRARY_PATH="/masif_venv/lib/python3.12/site-packages/nvidia/cublas/lib:/masif_venv/lib/python3.12/site-packages/nvidia/cuda_cupti/lib:/masif_venv/lib/python3.12/site-packages/nvidia/cuda_nvrtc/lib:/masif_venv/lib/python3.12/site-packages/nvidia/cuda_runtime/lib:/masif_venv/lib/python3.12/site-packages/nvidia/cudnn/lib:/masif_venv/lib/python3.12/site-packages/nvidia/cufft/lib:/masif_venv/lib/python3.12/site-packages/nvidia/curand/lib:/masif_venv/lib/python3.12/site-packages/nvidia/cusolver/lib:/masif_venv/lib/python3.12/site-packages/nvidia/cusparse/lib:/masif_venv/lib/python3.12/site-packages/nvidia/nccl/lib:/masif_venv/lib/python3.12/site-packages/nvidia/nvjitlink/lib"
 
 # ============================================================================
@@ -300,6 +312,37 @@ WORKDIR /
 # - RCSB server for PDB downloads
 # - Removed hardcoded developer paths from shell scripts
 RUN git clone https://github.com/laastos/masif.git
+
+# Apply GPU configuration fixes for Blackwell and newer NVIDIA drivers (580+)
+# Create a GPU setup module that configures TensorFlow for optimal GPU usage
+RUN echo 'import os\n\
+# Configure GPU settings before TensorFlow import\n\
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")\n\
+os.environ.setdefault("TF_FORCE_GPU_ALLOW_GROWTH", "true")\n\
+os.environ.setdefault("TF_XLA_FLAGS", "--tf_xla_auto_jit=-1")\n\
+os.environ.setdefault("XLA_FLAGS", "--xla_gpu_enable_triton_gemm=false")\n\
+\n\
+import tensorflow.compat.v1 as tf\n\
+tf.disable_eager_execution()\n\
+\n\
+# Configure GPU memory growth\n\
+try:\n\
+    gpus = tf.config.experimental.list_physical_devices("GPU")\n\
+    if gpus:\n\
+        for gpu in gpus:\n\
+            tf.config.experimental.set_memory_growth(gpu, True)\n\
+        print(f"Configured {len(gpus)} GPU(s) with memory growth")\n\
+except Exception as e:\n\
+    pass  # GPU configuration may fail on CPU-only systems\n\
+' > /masif/source/gpu_setup.py && \
+    # Add import to MaSIF modules (prepend import statement)
+    for f in /masif/source/masif_modules/MaSIF_site.py \
+             /masif/source/masif_modules/MaSIF_ppi_search.py \
+             /masif/source/masif_modules/MaSIF_ligand.py; do \
+        if [ -f "$f" ]; then \
+            sed -i '1i import gpu_setup  # GPU configuration for Blackwell/Driver 580+' "$f"; \
+        fi; \
+    done
 
 # Set Python path for MaSIF
 ENV PYTHONPATH="/masif/source"

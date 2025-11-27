@@ -326,7 +326,7 @@ The container is built on `ubuntu:24.04` with TensorFlow's bundled CUDA librarie
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| TensorFlow | 2.16.2 | Neural networks (GPU-enabled) |
+| TensorFlow | 2.18.0 | Neural networks (GPU-enabled with CUDA 12.5) |
 | BioPython | latest | PDB file handling |
 | Open3D | latest | RANSAC alignment |
 | NumPy | latest | Numerical operations |
@@ -502,12 +502,12 @@ git pull
 
 ## GPU Support
 
-The current Docker container (v3.0) includes full GPU support with CUDA 12.8 and TensorFlow 2.16.2.
+The current Docker container (v3.0) includes full GPU support with TensorFlow 2.18.0 and CUDA 12.5. Includes optimizations for Blackwell architecture GPUs (RTX PRO 6000, RTX 5000 series).
 
 ### Requirements
 
-- NVIDIA GPU with CUDA 12.x support
-- NVIDIA Driver 525+ (recommended 550+ for CUDA 12.x, 580+ for CUDA 13.0)
+- NVIDIA GPU with CUDA 12.x support (including Blackwell architecture)
+- NVIDIA Driver 525+ (recommended 550+ for CUDA 12.x, 580+ for CUDA 13.0/Blackwell)
 - nvidia-container-toolkit installed on host
 
 ### Running with GPU
