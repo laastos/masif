@@ -1,27 +1,55 @@
 *.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Data directories
 data/**/00-raw_pdbs/
 data/**/01-benchmark_surfaces/
 data/**/01-benchmark_pdbs/
 data/**/02-matfile/
-data/**/02-matfile/
 data/**/03-coords/
 data/**/04*precomputation*/
 data/**/data_preparation
+data/**/cache/
+data/masif_ppi_search/descriptors/
+data/masif_ppi_search_ub/descriptors/
+data/masif_site/output/
 data/masif_site/exelogs
+
+# Output files
 *.out
 *.err
 *.mat
 *.npy
 *.npz
+*.log
+
+# Checkpoints
 checkpoint
 # But include checkpoint files in model directories (needed for TensorFlow)
 !**/model_data/checkpoint
 !**/nn_models/**/checkpoint
-data/**/cache/
-**/obsolete/*
+# Ignore backup model directories
+**/*.bak/
+
+# IDE and editors
 .ipynb_checkpoints
-data/masif_ppi_search/descriptors/
-data/masif_ppi_search_ub/descriptors/
-data/masif_site/output/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Obsolete
+**/obsolete/*
+
+# TensorFlow directories
 tensorflow-1.9/
 tensorflow_on_gpu/
+
+# Docker
+docker/build/
+
+# Claude Code
+CLAUDE.md
