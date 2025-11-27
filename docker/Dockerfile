@@ -204,7 +204,12 @@ RUN apt-get update && apt-get install -y gcc-11 g++-11 && \
 RUN git clone --depth 1 https://github.com/PyMesh/PyMesh.git && \
     cd PyMesh && \
     git submodule update --init --recursive && \
-    # Use GCC 11 for building PyMesh (avoids GCC 13+ incompatibilities)
+    # Fix missing C++ headers in draco (required even with GCC 11)
+    sed -i '/#include <functional>/a #include <cstddef>' \
+        third_party/draco/src/draco/core/hash_utils.h && \
+    sed -i '/#include <cctype>/a #include <limits>' \
+        third_party/draco/src/draco/io/parser_utils.cc && \
+    # Use GCC 11 for building PyMesh (avoids other GCC 13+ incompatibilities)
     export CC=gcc-11 CXX=g++-11 && \
     python setup.py bdist_wheel && \
     pip install dist/pymesh2-*.whl && \
