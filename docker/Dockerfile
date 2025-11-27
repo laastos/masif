@@ -197,8 +197,7 @@ WORKDIR /opt
 ENV PYMESH_PATH=/opt/PyMesh
 # Note: PyMesh's bundled libraries need patching for GCC 13+ (Ubuntu 24.04)
 # - draco: missing #include <cstddef> and #include <limits>
-# - tbb: -Wchanges-meaning treated as error
-# Solution: Use system TBB and add compiler flags to handle warnings
+# - tbb: incompatible with GCC 13+, use system TBB instead
 RUN git clone --depth 1 https://github.com/PyMesh/PyMesh.git && \
     cd PyMesh && \
     git submodule update --init --recursive && \
@@ -207,10 +206,9 @@ RUN git clone --depth 1 https://github.com/PyMesh/PyMesh.git && \
         third_party/draco/src/draco/core/hash_utils.h && \
     sed -i '/#include <cctype>/a #include <limits>' \
         third_party/draco/src/draco/io/parser_utils.cc && \
-    # Remove bundled TBB to use system TBB (libtbb-dev)
-    rm -rf third_party/tbb && \
-    mkdir -p third_party/build/tbb && \
-    touch third_party/build/tbb/.done && \
+    # Patch build.py to skip TBB (use system libtbb-dev instead)
+    sed -i 's/def build(package, cleanup=True):/def build(package, cleanup=True):\n    if package == "tbb": return  # Skip TBB, use system version/' \
+        third_party/build.py && \
     # Build with relaxed warnings for GCC 13+
     CXXFLAGS="-Wno-error=changes-meaning -Wno-error=dangling-reference" \
     python setup.py bdist_wheel && \
