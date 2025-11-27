@@ -18,6 +18,9 @@ ENV LC_ALL=C.UTF-8
 # ============================================================================
 # 1. Install system dependencies
 # ============================================================================
+# Note: Ubuntu 24.04 changes:
+# - libgl1-mesa-glx -> libgl1
+# - Python 3.12 is the default (TensorFlow 2.16 supports Python 3.9-3.12)
 RUN apt-get update && apt-get install -y \
     wget \
     curl \
@@ -27,7 +30,7 @@ RUN apt-get update && apt-get install -y \
     vim \
     build-essential \
     swig \
-    libgl1-mesa-glx \
+    libgl1 \
     libglu1-mesa \
     libxrender1 \
     libxcursor1 \
@@ -44,9 +47,9 @@ RUN apt-get update && apt-get install -y \
     liblapack-dev \
     libtbb-dev \
     nlohmann-json3-dev \
-    python3.11 \
-    python3.11-dev \
-    python3.11-venv \
+    python3 \
+    python3-dev \
+    python3-venv \
     python3-pip \
     software-properties-common \
     && rm -rf /var/lib/apt/lists/*
@@ -54,7 +57,7 @@ RUN apt-get update && apt-get install -y \
 # ============================================================================
 # 2. Create Python virtual environment (AlphaFold3 pattern)
 # ============================================================================
-RUN python3.11 -m venv /masif_venv
+RUN python3 -m venv /masif_venv
 ENV PATH="/masif_venv/bin:$PATH"
 
 # ============================================================================

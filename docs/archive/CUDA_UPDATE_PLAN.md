@@ -18,7 +18,7 @@ All changes described in this plan have been applied to the codebase.
 | Component | Previous | Current |
 |-----------|----------|---------|
 | Base Image | `ubuntu:20.04` | `nvidia/cuda:12.6.3-base-ubuntu24.04` |
-| Python | 3.8 | 3.11 |
+| Python | 3.8 | 3.12 (Ubuntu 24.04 default) |
 | TensorFlow | 2.4.0 (CPU) | 2.16.2 (GPU) |
 | CUDA | None | 12.6 |
 
@@ -35,7 +35,7 @@ FROM nvidia/cuda:12.6.3-base-ubuntu24.04
 ### Python Virtual Environment
 
 ```dockerfile
-RUN python3.11 -m venv /masif_venv
+RUN python3 -m venv /masif_venv
 ENV PATH="/masif_venv/bin:$PATH"
 ```
 
@@ -116,7 +116,7 @@ These tools remain configured as before:
 
 | File | Changes |
 |------|---------|
-| `docker/Dockerfile` | GPU base image, Python 3.11, TF 2.16.2 |
+| `docker/Dockerfile` | GPU base image, Python 3.12, TF 2.16.2 |
 | `source/masif_modules/MaSIF_site.py` | TF import + dim.value fix |
 | `source/masif_modules/MaSIF_ligand.py` | TF import + dim.value fix |
 | `source/masif_modules/MaSIF_ppi_search.py` | TF import + dim.value fix |
