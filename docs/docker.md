@@ -309,7 +309,7 @@ docker stop masif_job
 
 ### Base Image
 
-The container is built on `nvidia/cuda:12.6.3-base-ubuntu24.04` for full GPU support.
+The container is built on `ubuntu:24.04` with TensorFlow's bundled CUDA libraries for GPU support. This approach avoids CUDA version conflicts between system and TensorFlow libraries.
 
 ### Scientific Tools
 
@@ -437,8 +437,9 @@ The MaSIF Dockerfile (v3.0) uses a **multi-stage build** to handle PyMesh compil
 - Patches: draco headers, pybind11 upgrade, mmg linker workaround
 - Output: `pymesh2-0.3-cp312-cp312-linux_x86_64.whl`
 
-**Stage 2: Final Container (Ubuntu 24.04 + CUDA 12.6)**
-1. **Base**: NVIDIA CUDA 12.6.3 on Ubuntu 24.04
+**Stage 2: Final Container (Ubuntu 24.04)**
+
+1. **Base**: Ubuntu 24.04 (TensorFlow bundles its own CUDA 12.3)
 2. **System dependencies**: Build tools, libraries
 3. **Python virtual environment**: Python 3.12 venv (AlphaFold3 pattern)
 4. **Python packages**: TensorFlow 2.16.2 with GPU support, BioPython, Open3D, etc.
@@ -501,12 +502,12 @@ git pull
 
 ## GPU Support
 
-The current Docker container (v3.0) includes full GPU support with CUDA 12.6 and TensorFlow 2.16.2.
+The current Docker container (v3.0) includes full GPU support with CUDA 12.8 and TensorFlow 2.16.2.
 
 ### Requirements
 
 - NVIDIA GPU with CUDA 12.x support
-- NVIDIA Driver 525+ (recommended 580+)
+- NVIDIA Driver 525+ (recommended 550+ for CUDA 12.x, 580+ for CUDA 13.0)
 - nvidia-container-toolkit installed on host
 
 ### Running with GPU
@@ -593,6 +594,70 @@ TensorFlow may show warnings about CPU optimizations. These can be safely ignore
 
 ```bash
 docker run -it -e TF_CPP_MIN_LOG_LEVEL=2 masif
+```
+
+### CUDA Errors (GPU)
+
+#### CUDA_ERROR_INVALID_HANDLE or cuLaunchKernel errors
+
+**Cause**: CUDA driver/runtime version mismatch or GPU initialization failure.
+
+**Solutions**:
+
+**1. Run in CPU-only mode** (immediate workaround):
+
+```bash
+docker run -it -e CUDA_VISIBLE_DEVICES=-1 masif
+# Inside container:
+masif-site predict 4ZQK_A
+```
+
+**2. Test GPU access directly**:
+
+```bash
+docker run --gpus all -it masif python3 -c "
+import tensorflow as tf
+print('TF version:', tf.__version__)
+gpus = tf.config.list_physical_devices('GPU')
+print('GPUs:', gpus)
+if gpus:
+    tf.debugging.set_log_device_placement(True)
+    with tf.device('/GPU:0'):
+        a = tf.constant([[1.0, 2.0], [3.0, 4.0]])
+        print('GPU test passed!')
+"
+```
+
+**3. Use a specific GPU** (if multiple GPUs):
+
+```bash
+docker run --gpus '"device=0"' -it masif
+```
+
+**4. Disable CUDA caching**:
+
+```bash
+docker run --gpus all -it \
+    -e CUDA_CACHE_DISABLE=1 \
+    -e TF_GPU_ALLOCATOR=cuda_malloc_async \
+    masif
+```
+
+**5. Rebuild the container**:
+
+- The updated container uses Ubuntu 24.04 with TensorFlow's bundled CUDA 12.3
+- This avoids conflicts between system CUDA and TensorFlow's libraries
+- Works with Driver 525+ (CUDA 12.x) through Driver 580+ (CUDA 13.0)
+
+#### Cannot find CUDA libraries
+
+**Cause**: TensorFlow can't find CUDA in the container.
+
+**Solution**: The container uses `tensorflow[and-cuda]` which bundles CUDA libraries. Verify:
+
+```bash
+# Inside container
+python3 -c "import tensorflow as tf; print(tf.sysconfig.get_build_info())"
 ```
 
 ### Memory Issues

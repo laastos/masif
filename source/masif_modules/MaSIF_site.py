@@ -1,5 +1,23 @@
+import os
+# Configure GPU before importing TensorFlow
+# This fixes CUDA_ERROR_INVALID_HANDLE with newer drivers (580+)
+os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '2')
+os.environ.setdefault('TF_FORCE_GPU_ALLOW_GROWTH', 'true')
+
 import tensorflow.compat.v1 as tf
 tf.disable_eager_execution()
+
+# Configure GPU memory growth to avoid allocation issues
+try:
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        # Optionally limit to first GPU to avoid multi-GPU issues
+        # tf.config.set_visible_devices(gpus[0], 'GPU')
+except Exception as e:
+    pass  # GPU configuration may fail on CPU-only systems
+
 import numpy as np
 
 # TF 2.x compatibility: Replace removed tf.contrib functions
@@ -539,6 +557,10 @@ class MaSIF_site:
                 # Create a session for running Ops on the Graph.
                 config = tf.ConfigProto(allow_soft_placement=True)
                 config.gpu_options.allow_growth = True
+                # Additional GPU options for driver compatibility (580+)
+                config.gpu_options.per_process_gpu_memory_fraction = 0.9
+                # Disable XLA JIT compilation which can cause issues with newer drivers
+                config.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.OFF
                 self.session = tf.Session(config=config)
                 self.saver = tf.train.Saver()
 

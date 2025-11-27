@@ -67,7 +67,10 @@ RUN git clone --depth 1 https://github.com/PyMesh/PyMesh.git && \
 # ============================================================================
 # STAGE 2: Final MaSIF container with GPU support
 # ============================================================================
-FROM nvidia/cuda:12.6.3-base-ubuntu24.04
+# Use plain Ubuntu - TensorFlow 2.16.2[and-cuda] bundles its own CUDA 12.3 libraries
+# This avoids conflicts between system CUDA and TensorFlow's bundled CUDA
+# GPU access is provided by nvidia-container-toolkit on the host
+FROM ubuntu:24.04
 
 LABEL maintainer="MaSIF Team"
 LABEL description="MaSIF - Molecular Surface Interaction Fingerprints (GPU)"
@@ -143,14 +146,27 @@ RUN pip install --upgrade pip setuptools wheel && \
     SBILib
 
 # ============================================================================
-# 4. GPU Environment Variables (AlphaFold3 pattern + TensorFlow)
+# 4. GPU Environment Variables for TensorFlow 2.16 with bundled CUDA
 # ============================================================================
-ENV XLA_FLAGS="--xla_gpu_enable_triton_gemm=false"
-ENV XLA_PYTHON_CLIENT_PREALLOCATE=true
-ENV XLA_CLIENT_MEM_FRACTION=0.95
+# TensorFlow 2.16.2[and-cuda] bundles CUDA 12.3, cuDNN 8.9, and other libraries.
+# These are installed in the site-packages/nvidia/ directory.
+# We set LD_LIBRARY_PATH to ensure TensorFlow finds its bundled libraries.
+#
+# Environment variables:
+# - TF_FORCE_GPU_ALLOW_GROWTH: Prevent TF from allocating all GPU memory at start
+# - TF_CPP_MIN_LOG_LEVEL: Reduce log verbosity (0=all, 1=info, 2=warnings, 3=errors)
+# - TF_ENABLE_ONEDNN_OPTS: Disable oneDNN for consistent results
+# - NVIDIA_VISIBLE_DEVICES: Allow nvidia-container-toolkit to pass GPU access
+# - NVIDIA_DRIVER_CAPABILITIES: Request compute and utility capabilities
 ENV TF_FORCE_GPU_ALLOW_GROWTH=true
 ENV TF_CPP_MIN_LOG_LEVEL=2
 ENV TF_ENABLE_ONEDNN_OPTS=0
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+# Set LD_LIBRARY_PATH to TensorFlow's bundled CUDA libraries
+# This ensures TensorFlow uses its own CUDA 12.3 instead of system CUDA
+ENV LD_LIBRARY_PATH="/masif_venv/lib/python3.12/site-packages/nvidia/cublas/lib:/masif_venv/lib/python3.12/site-packages/nvidia/cuda_cupti/lib:/masif_venv/lib/python3.12/site-packages/nvidia/cuda_nvrtc/lib:/masif_venv/lib/python3.12/site-packages/nvidia/cuda_runtime/lib:/masif_venv/lib/python3.12/site-packages/nvidia/cudnn/lib:/masif_venv/lib/python3.12/site-packages/nvidia/cufft/lib:/masif_venv/lib/python3.12/site-packages/nvidia/curand/lib:/masif_venv/lib/python3.12/site-packages/nvidia/cusolver/lib:/masif_venv/lib/python3.12/site-packages/nvidia/cusparse/lib:/masif_venv/lib/python3.12/site-packages/nvidia/nccl/lib:/masif_venv/lib/python3.12/site-packages/nvidia/nvjitlink/lib"
 
 # ============================================================================
 # 5. Install MSMS (Molecular Surface Computation)
