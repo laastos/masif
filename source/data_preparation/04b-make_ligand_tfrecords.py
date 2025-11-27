@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow.compat.v1 as tf
-tf.disable_v2_behavior()
+tf.disable_eager_execution()
 from random import shuffle
 import os
 import glob

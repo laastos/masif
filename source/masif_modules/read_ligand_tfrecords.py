@@ -1,5 +1,5 @@
 import tensorflow.compat.v1 as tf
-tf.disable_v2_behavior()
+tf.disable_eager_execution()
 
 
 def _parse_function(example_proto):

@@ -1,17 +1,19 @@
-# MaSIF Docker Container (CPU-Only)
+# MaSIF Docker Container (GPU-Enabled)
 # Includes all tools: MaSIF-site, MaSIF-search, MaSIF-ligand, MaSIF-peptides
 #
 # Build: docker build -t masif .
-# Run:   docker run -it masif
+# Run:   docker run --gpus all -it masif
 
-FROM ubuntu:20.04
+FROM nvidia/cuda:12.6.3-base-ubuntu24.04
 
 LABEL maintainer="MaSIF Team"
-LABEL description="MaSIF - Molecular Surface Interaction Fingerprints"
-LABEL version="2.0"
+LABEL description="MaSIF - Molecular Surface Interaction Fingerprints (GPU)"
+LABEL version="3.0"
 
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
 
 # ============================================================================
 # 1. Install system dependencies
@@ -42,41 +44,50 @@ RUN apt-get update && apt-get install -y \
     liblapack-dev \
     libtbb-dev \
     nlohmann-json3-dev \
-    python3.8 \
-    python3.8-dev \
+    python3.11 \
+    python3.11-dev \
+    python3.11-venv \
     python3-pip \
     software-properties-common \
     && rm -rf /var/lib/apt/lists/*
 
-# Set Python 3.8 as default
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.8 1 && \
-    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1
+# ============================================================================
+# 2. Create Python virtual environment (AlphaFold3 pattern)
+# ============================================================================
+RUN python3.11 -m venv /masif_venv
+ENV PATH="/masif_venv/bin:$PATH"
 
 # ============================================================================
-# 2. Install Python 3.8 packages
+# 3. Install Python packages with GPU-enabled TensorFlow
 # ============================================================================
-# Note: TensorFlow 2.x with compat.v1 mode for Python 3.8 compatibility
-# Pin setuptools<71 to avoid strict version parsing issues with some packages
-# Pin protobuf<4 for TensorFlow 2.4.0 compatibility (protobuf 4.x breaks TF's pb2 files)
-RUN pip3 install --upgrade "pip<24" "setuptools<71" && \
-    pip3 install \
-    tensorflow==2.4.0 \
-    "protobuf<4" \
-    "numpy<1.24" \
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install \
+    "tensorflow[and-cuda]==2.16.2" \
+    numpy \
     scipy \
     matplotlib \
     ipython \
-    biopython==1.79 \
+    biopython \
     scikit-learn \
     networkx \
-    open3d==0.13.0 \
+    open3d \
     dask \
     packaging \
     plyfile \
     SBILib
 
 # ============================================================================
-# 4. Install MSMS (Molecular Surface Computation)
+# 4. GPU Environment Variables (AlphaFold3 pattern + TensorFlow)
+# ============================================================================
+ENV XLA_FLAGS="--xla_gpu_enable_triton_gemm=false"
+ENV XLA_PYTHON_CLIENT_PREALLOCATE=true
+ENV XLA_CLIENT_MEM_FRACTION=0.95
+ENV TF_FORCE_GPU_ALLOW_GROWTH=true
+ENV TF_CPP_MIN_LOG_LEVEL=2
+ENV TF_ENABLE_ONEDNN_OPTS=0
+
+# ============================================================================
+# 5. Install MSMS (Molecular Surface Computation)
 # ============================================================================
 WORKDIR /opt
 # Primary source often fails, try alternative sources
@@ -130,10 +141,9 @@ ENV MSMS_BIN=/opt/msms/msms
 ENV PDB2XYZRN=/opt/msms/pdb_to_xyzrn
 
 # ============================================================================
-# 5. Install APBS (Poisson-Boltzmann Electrostatics)
+# 6. Install APBS (Poisson-Boltzmann Electrostatics)
 # ============================================================================
 # Download pre-built APBS 3.4.1 from GitHub (includes multivalue binary)
-# APBS 1.5 on SourceForge is no longer reliably available
 RUN curl -L -o /tmp/APBS-3.4.1.Linux.zip \
     "https://github.com/Electrostatics/apbs/releases/download/v3.4.1/APBS-3.4.1.Linux.zip" && \
     unzip -q /tmp/APBS-3.4.1.Linux.zip -d /opt && \
@@ -145,10 +155,10 @@ ENV APBS_BIN=/opt/APBS-3.4.1.Linux/bin/apbs
 ENV MULTIVALUE_BIN=/opt/APBS-3.4.1.Linux/share/apbs/tools/bin/multivalue
 
 # ============================================================================
-# 6. Install PDB2PQR
+# 7. Install PDB2PQR
 # ============================================================================
 # Install PDB2PQR via pip (Python 3 version)
-RUN pip3 install pdb2pqr
+RUN pip install pdb2pqr
 
 # Create wrapper script for compatibility with MaSIF's expected path
 RUN mkdir -p /opt/pdb2pqr-linux-bin64-2.1.1 && \
@@ -158,7 +168,7 @@ RUN mkdir -p /opt/pdb2pqr-linux-bin64-2.1.1 && \
 ENV PDB2PQR_BIN=/opt/pdb2pqr-linux-bin64-2.1.1/pdb2pqr
 
 # ============================================================================
-# 7. Install Reduce (Protonation)
+# 8. Install Reduce (Protonation)
 # ============================================================================
 RUN git clone https://github.com/rlabduke/reduce.git && \
     cd reduce && \
@@ -177,26 +187,25 @@ ENV REDUCE_HET_DICT=/usr/local/share/reduce_wwPDB_het_dict.txt
 ENV PATH="/usr/local/bin:${PATH}"
 
 # ============================================================================
-# 8. Install PyMesh (Mesh Operations)
+# 9. Install PyMesh (Mesh Operations)
 # ============================================================================
 # Build PyMesh using its official build system and install via pip
-# Skip requirements.txt (numpy/scipy already installed, nose is only for testing)
 WORKDIR /opt
 ENV PYMESH_PATH=/opt/PyMesh
 RUN git clone --depth 1 https://github.com/PyMesh/PyMesh.git && \
     cd PyMesh && \
     git submodule update --init --recursive && \
-    python3 setup.py bdist_wheel && \
-    pip3 install dist/pymesh2-*.whl && \
-    python3 -c "import pymesh; print('PyMesh installed successfully')" && \
+    python setup.py bdist_wheel && \
+    pip install dist/pymesh2-*.whl && \
+    python -c "import pymesh; print('PyMesh installed successfully')" && \
     cd / && rm -rf /opt/PyMesh
 
 # ============================================================================
-# 9. Clone MaSIF repository (modernized fork with Python 3.8+/TF 2.x compatibility)
+# 10. Clone MaSIF repository (modernized fork with Python 3/TF 2.x compatibility)
 # ============================================================================
 WORKDIR /
 # Using modernized fork with all compatibility fixes pre-applied:
-# - Python 3.8+ compatibility (time.clock -> time.perf_counter)
+# - Python 3+ compatibility (time.clock -> time.perf_counter)
 # - TensorFlow 2.x compatibility (compat.v1 mode)
 # - NumPy/sklearn compatibility (.todense -> .toarray, np.int -> np.int64)
 # - PDB2PQR 3.x compatibility (--ff=PARSE, --apbs-input= syntax)
@@ -208,7 +217,7 @@ RUN git clone https://github.com/laastos/masif.git
 ENV PYTHONPATH="/masif/source"
 
 # ============================================================================
-# 10. Create helper scripts for running MaSIF applications
+# 11. Create helper scripts for running MaSIF applications
 # ============================================================================
 
 # Create masif-site runner script
@@ -280,7 +289,7 @@ fi\n\
 ' > /usr/local/bin/masif-peptides && chmod +x /usr/local/bin/masif-peptides
 
 # ============================================================================
-# 11. Set working directory and default command
+# 12. Set working directory and default command
 # ============================================================================
 WORKDIR /masif
 

@@ -9,7 +9,7 @@ from masif_modules.MaSIF_ligand import MaSIF_ligand
 from masif_modules.read_ligand_tfrecords import _parse_function
 from sklearn.metrics import confusion_matrix
 import tensorflow.compat.v1 as tf
-tf.disable_v2_behavior()
+tf.disable_eager_execution()
 
 """
 masif_ligand_train.py: Train MaSIF-ligand. 
@@ -56,11 +56,11 @@ with tf.Session() as sess:
         num_training_samples = 1030
         num_validation_samples = 120
         num_testing_samples = 290
-        training_iterator = training_data.make_one_shot_iterator()
+        training_iterator = tf.compat.v1.data.make_one_shot_iterator(training_data)
         training_next_element = training_iterator.get_next()
-        validation_iterator = validation_data.make_one_shot_iterator()
+        validation_iterator = tf.compat.v1.data.make_one_shot_iterator(validation_data)
         validation_next_element = validation_iterator.get_next()
-        testing_iterator = testing_data.make_one_shot_iterator()
+        testing_iterator = tf.compat.v1.data.make_one_shot_iterator(testing_data)
         testing_next_element = testing_iterator.get_next()
 
         training_losses = []
@@ -237,7 +237,7 @@ with tf.Session() as sess:
         training_losses = []
         training_ytrue = []
         training_ypred = []
-        training_iterator = training_data.make_one_shot_iterator()
+        training_iterator = tf.compat.v1.data.make_one_shot_iterator(training_data)
         training_next_element = training_iterator.get_next()
         for num_sample in range(num_training_samples):
             try:

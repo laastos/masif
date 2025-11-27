@@ -1,5 +1,5 @@
 import tensorflow.compat.v1 as tf
-tf.disable_v2_behavior()
+tf.disable_eager_execution()
 import numpy as np
 
 # TF 2.x compatibility: Replace removed tf.contrib functions
@@ -47,7 +47,7 @@ class MaSIF_site:
             print(variable)
             variable_parameters = 1
             for dim in shape:
-                variable_parameters *= dim.value
+                variable_parameters *= dim if isinstance(dim, int) else int(dim)
             print(variable_parameters)
             total_parameters += variable_parameters
         print("Total number parameters: %d" % total_parameters)
