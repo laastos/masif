@@ -19,8 +19,9 @@ This guide covers the complete installation of MaSIF and all its dependencies.
 ## System Requirements
 
 ### Operating System
-- Linux (Ubuntu 18.04+, RHEL 7+, CentOS 7+) - **Recommended**
-- macOS (High Sierra 10.13+)
+
+- Linux (Ubuntu 22.04+, RHEL 8+) - **Recommended**
+- macOS (Monterey 12+)
 - Windows (via WSL2 or Docker)
 
 ### Hardware Requirements
@@ -30,7 +31,16 @@ This guide covers the complete installation of MaSIF and all its dependencies.
 | CPU | 2 cores, 2.6 GHz | 8+ cores |
 | RAM | 16 GB | 32 GB |
 | Storage | 50 GB | 500 GB+ SSD |
-| GPU | - | NVIDIA CUDA 10.0 compatible |
+| GPU | - | NVIDIA GPU with CUDA 12.x support |
+
+### Software Requirements
+
+| Component | Version |
+|-----------|---------|
+| Python | 3.12 |
+| TensorFlow | 2.16.2 |
+| CUDA | 12.6 (for GPU) |
+| NVIDIA Driver | 525+ (for GPU) |
 
 ### Storage Considerations
 
@@ -63,31 +73,41 @@ cd masif/
 
 ### Step 2: Installing Python Dependencies
 
-MaSIF requires Python 3.6 with specific package versions.
+MaSIF requires Python 3.12 with TensorFlow 2.16.
 
 #### Create a Virtual Environment (Recommended)
 
 ```bash
 # Using conda
-conda create -n masif python=3.6
+conda create -n masif python=3.12
 conda activate masif
 
 # Or using venv
-python3.6 -m venv masif_env
+python3 -m venv masif_env
 source masif_env/bin/activate
 ```
 
 #### Install Python Packages
 
 ```bash
+pip install --upgrade pip setuptools wheel
+
+# TensorFlow with GPU support (includes CUDA libraries)
+pip install "tensorflow[and-cuda]==2.16.2"
+
+# Or CPU-only TensorFlow
+pip install tensorflow==2.16.2
+
+# Other dependencies
 pip install numpy scipy scikit-learn
-pip install tensorflow==1.9.0        # or tensorflow-gpu==1.9.0 for GPU support
-pip install biopython==1.66
-pip install open3d-python==0.5.0.0
-pip install dask==2.2.0
-pip install StrBioInfo
-pip install ipython
+pip install biopython
+pip install open3d
+pip install dask
+pip install SBILib
+pip install ipython networkx plyfile packaging
 ```
+
+**Note**: The code uses `tf.compat.v1` mode with `tf.disable_eager_execution()` for compatibility with existing trained models.
 
 #### Installing PyMesh
 
@@ -146,13 +166,14 @@ mv reduce.3.23.130521.linuxi386 ~/tools/reduce/reduce
 #### APBS and PDB2PQR (Electrostatics)
 
 ```bash
-# Download APBS 1.5
-wget https://github.com/Electrostatics/apbs/releases/download/v1.5/APBS-1.5-linux64.tar.gz
-tar xzf APBS-1.5-linux64.tar.gz -C ~/tools/
+# Download APBS 3.4.1
+wget https://github.com/Electrostatics/apbs/releases/download/v3.4.1/APBS-3.4.1.Linux.zip
+unzip APBS-3.4.1.Linux.zip -d ~/tools/
+chmod +x ~/tools/APBS-3.4.1.Linux/bin/apbs
+chmod +x ~/tools/APBS-3.4.1.Linux/share/apbs/tools/bin/multivalue
 
-# Download PDB2PQR 2.1.1
-wget https://github.com/Electrostatics/pdb2pqr/releases/download/v2.1.1/pdb2pqr-linux-bin64-2.1.1.tar.gz
-tar xzf pdb2pqr-linux-bin64-2.1.1.tar.gz -C ~/tools/
+# Install PDB2PQR via pip
+pip install pdb2pqr
 ```
 
 ### Step 4: Environment Configuration
@@ -168,11 +189,15 @@ export REDUCE_BIN=$HOME/tools/reduce/reduce
 export PATH=$PATH:$HOME/tools/reduce/
 export REDUCE_HET_DICT=$HOME/tools/reduce/reduce_wwPDB_het_dict.txt
 
-export APBS_BIN=$HOME/tools/APBS-1.5-linux64/bin/apbs
-export MULTIVALUE_BIN=$HOME/tools/APBS-1.5-linux64/share/apbs/tools/bin/multivalue
-export PDB2PQR_BIN=$HOME/tools/pdb2pqr-linux-bin64-2.1.1/pdb2pqr
+export APBS_BIN=$HOME/tools/APBS-3.4.1.Linux/bin/apbs
+export MULTIVALUE_BIN=$HOME/tools/APBS-3.4.1.Linux/share/apbs/tools/bin/multivalue
+export PDB2PQR_BIN=$(which pdb2pqr30)  # or create wrapper script
 
 export PYMESH_PATH=$HOME/tools/PyMesh
+
+# GPU optimization (optional, for TensorFlow GPU)
+export TF_FORCE_GPU_ALLOW_GROWTH=true
+export TF_CPP_MIN_LOG_LEVEL=2
 ```
 
 Reload your shell configuration:
@@ -185,7 +210,7 @@ source ~/.bashrc
 
 ## Docker Installation
 
-Docker provides the easiest installation path with all dependencies pre-configured.
+Docker provides the easiest installation path with all dependencies pre-configured, including GPU support.
 
 ### Build from Source (Recommended)
 
@@ -196,21 +221,25 @@ cd masif/docker/
 # Build the image (takes 15-30 minutes)
 docker build -t masif .
 
-# Run the container
+# Run the container with GPU support
+docker run --gpus all -it masif
+
+# Or run CPU-only
 docker run -it masif
 ```
 
-### Pull Pre-built Image (Alternative)
+### GPU Requirements
+
+For GPU support in Docker:
+
+- NVIDIA GPU with CUDA 12.x support
+- NVIDIA Driver 525+ installed on host
+- nvidia-container-toolkit installed
 
 ```bash
-# Pull the pre-built image if available
-docker pull pablogainza/masif:latest
-
-# Run the container
-docker run -it pablogainza/masif
-
-# Inside container, update to latest version
-git pull
+# Install nvidia-container-toolkit (Ubuntu)
+sudo apt-get install nvidia-container-toolkit
+sudo systemctl restart docker
 ```
 
 ### Using Helper Commands
@@ -234,12 +263,12 @@ masif-ligand prepare 1ABC_A_ADP
 masif-peptides extract 1ABC_A
 ```
 
-### GPU Support
+### Verify GPU Access in Docker
 
-The current Docker container (v2.0) is CPU-only. For GPU support, either:
-
-1. Use the legacy GPU image: `docker pull pablogainza/masif:latest` with `--gpus all`
-2. Use native installation with TensorFlow-GPU (see below)
+```bash
+docker run --gpus all -it masif python3 -c \
+    "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
+```
 
 ### Docker Volume Mounting
 

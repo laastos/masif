@@ -66,17 +66,22 @@ MaSIF (Molecular Surface Interaction Fingerprints) is a proof-of-concept method 
 ## System Requirements
 
 ### Minimum Requirements
+
 - **CPU**: Intel Xeon or equivalent (2+ cores)
 - **RAM**: 16GB
 - **Storage**: 50GB for software, 400GB+ per application dataset
-- **OS**: Linux (Ubuntu 18.04+, RHEL 7+) or macOS
+- **OS**: Linux (Ubuntu 22.04+) or macOS
+- **Python**: 3.12
 
 ### Recommended for Training
-- **GPU**: NVIDIA GPU with CUDA 10.0 support (Tesla K40 or better)
+
+- **GPU**: NVIDIA GPU with CUDA 12.x support (RTX 3000 series or better)
 - **RAM**: 32GB+
 - **Storage**: SSD for faster I/O
+- **TensorFlow**: 2.16.2 with GPU support
 
 ### Processing Times
+
 - Data preparation: ~2 minutes per protein (CPU-bound)
 - Neural network inference: ~2 seconds per protein (GPU)
 - Full training: ~40 hours (GPU recommended)

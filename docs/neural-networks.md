@@ -152,11 +152,11 @@ Approximate trainable parameters:
 
 ## TensorFlow Implementation
 
-The networks are implemented using TensorFlow 1.x compatibility mode:
+The networks are implemented using TensorFlow 2.16.2 in `tf.compat.v1` compatibility mode. This allows GPU-accelerated training while maintaining compatibility with pre-trained models:
 
 ```python
 import tensorflow.compat.v1 as tf
-tf.disable_eager_execution()
+tf.disable_eager_execution()  # Required for tf.compat.v1 mode
 ```
 
 Key classes:

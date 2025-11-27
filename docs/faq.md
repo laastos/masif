@@ -53,11 +53,12 @@ Performance varies by application:
 
 ### What's the easiest way to install MaSIF?
 
-Docker provides the easiest installation:
+Docker provides the easiest installation with GPU support:
 
 ```bash
-docker pull pablogainza/masif:latest
-docker run -it pablogainza/masif
+cd docker/
+docker build -t masif .
+docker run --gpus all -it masif
 ```
 
 ### Do I need a GPU?
@@ -66,13 +67,15 @@ docker run -it pablogainza/masif
 - **For training**: GPU strongly recommended (10-100x speedup)
 - **For preprocessing**: CPU-bound, GPU doesn't help
 
+The Docker container includes full GPU support with CUDA 12.6.
+
 ### Which Python version is required?
 
-MaSIF requires Python 3.6. Some components (biological assembly generation) need Python 2.7.
+MaSIF requires Python 3.12. The code uses `tf.compat.v1` mode for compatibility with existing trained models.
 
-### Why TensorFlow 1.9?
+### What TensorFlow version is used?
 
-MaSIF was developed with TensorFlow 1.x API. Migration to TensorFlow 2.x would require significant code changes.
+MaSIF uses TensorFlow 2.16.2 in `tf.compat.v1` compatibility mode with `tf.disable_eager_execution()`. This allows using GPU-enabled TensorFlow 2.x while maintaining compatibility with pre-trained models.
 
 ### Can I run MaSIF on Windows?
 
@@ -228,10 +231,12 @@ APBS solves the Poisson-Boltzmann equation numerically, which is computationally
 
 ### What GPU should I use?
 
-MaSIF was tested on NVIDIA Tesla K40. Any CUDA 10.0 compatible GPU works:
+MaSIF works with any NVIDIA GPU supporting CUDA 12.x:
+
 - Minimum: GTX 1060 (6GB)
-- Recommended: RTX 2080/3080 or Tesla V100
+- Recommended: RTX 3080/4080 or Tesla A100
 - For large batches: A100 or multi-GPU setup
+- Tested on: NVIDIA RTX PRO 6000 Blackwell (98GB VRAM)
 
 ### How much memory do I need?
 

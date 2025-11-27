@@ -29,7 +29,10 @@ cd docker/
 # Build the image (takes 15-30 minutes)
 docker build -t masif .
 
-# Run the container
+# Run the container with GPU support
+docker run --gpus all -it masif
+
+# Or run without GPU (CPU-only)
 docker run -it masif
 
 # Inside container, run MaSIF-site on example protein
@@ -53,7 +56,7 @@ docker build -t masif .
 
 ```bash
 # Build with a specific tag
-docker build -t masif:v2.0 .
+docker build -t masif:v3.0 .
 
 # Build without cache (for fresh builds)
 docker build --no-cache -t masif .
@@ -304,40 +307,35 @@ docker stop masif_job
 
 ## Container Contents
 
+### Base Image
+
+The container is built on `nvidia/cuda:12.6.3-base-ubuntu24.04` for full GPU support.
+
 ### Scientific Tools
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| APBS | System package | Poisson-Boltzmann electrostatics |
+| APBS | 3.4.1 | Poisson-Boltzmann electrostatics |
 | MSMS | 2.6.1 | Molecular surface computation |
-| PDB2PQR | pip package | PDB to PQR conversion |
+| PDB2PQR | 3.x (pip) | PDB to PQR conversion |
 | Reduce | latest | Protonation |
 | PyMesh | latest | Mesh operations |
 | DSSP | System package | Secondary structure assignment |
 
-### Python 3.6 Packages
+### Python 3.12 Packages
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| TensorFlow | 1.12.0 | Neural networks |
-| BioPython | 1.73 | PDB file handling |
-| Open3D | 0.8.0.0 | RANSAC alignment |
+| TensorFlow | 2.16.2 | Neural networks (GPU-enabled) |
+| BioPython | latest | PDB file handling |
+| Open3D | latest | RANSAC alignment |
 | NumPy | latest | Numerical operations |
 | SciPy | latest | Scientific computing |
 | scikit-learn | latest | Machine learning utilities |
 | NetworkX | latest | Graph operations |
-| Dask | 1.2.2 | Parallel computing |
+| Dask | latest | Parallel computing |
 | plyfile | latest | PLY file I/O |
-
-### Python 2.7 Packages
-
-Required for MaSIF-ligand biological assembly generation:
-
-| Package | Version | Purpose |
-|---------|---------|---------|
-| SBI (StrBioInfo) | 0.2.2 | Biological assembly generation |
-| BioPython | 1.76 | PDB parsing |
-| NumPy | latest | Numerical operations |
+| SBILib | latest | Biological assembly generation |
 
 ### Pre-trained Models
 
@@ -359,14 +357,23 @@ All pre-trained models are included:
 The container automatically sets all required environment variables:
 
 ```bash
+# Tool paths
 MSMS_BIN=/opt/msms/msms
 PDB2XYZRN=/opt/msms/pdb_to_xyzrn
-APBS_BIN=/opt/APBS-1.5-linux64/bin/apbs
-MULTIVALUE_BIN=/opt/APBS-1.5-linux64/share/apbs/tools/bin/multivalue
+APBS_BIN=/opt/APBS-3.4.1.Linux/bin/apbs
+MULTIVALUE_BIN=/opt/APBS-3.4.1.Linux/share/apbs/tools/bin/multivalue
 PDB2PQR_BIN=/opt/pdb2pqr-linux-bin64-2.1.1/pdb2pqr
 REDUCE_HET_DICT=/usr/local/share/reduce_wwPDB_het_dict.txt
 PYMESH_PATH=/opt/PyMesh
 PYTHONPATH=/masif/source
+
+# GPU optimization variables
+XLA_FLAGS="--xla_gpu_enable_triton_gemm=false"
+XLA_PYTHON_CLIENT_PREALLOCATE=true
+XLA_CLIENT_MEM_FRACTION=0.95
+TF_FORCE_GPU_ALLOW_GROWTH=true
+TF_CPP_MIN_LOG_LEVEL=2
+TF_ENABLE_ONEDNN_OPTS=0
 ```
 
 ---
@@ -422,19 +429,20 @@ docker run -it masif:custom
 
 ### Dockerfile Structure Overview
 
-The MaSIF Dockerfile (v2.0) includes these main sections:
+The MaSIF Dockerfile (v3.0) includes these main sections:
 
-1. **Base**: Ubuntu 18.04
+1. **Base**: NVIDIA CUDA 12.6.3 on Ubuntu 24.04
 2. **System dependencies**: Build tools, libraries
-3. **Python 2.7 packages**: SBI library for MaSIF-ligand
-4. **Python 3.6 packages**: TensorFlow, BioPython, Open3D, etc.
-5. **MSMS**: Molecular surface computation
-6. **APBS**: Electrostatics calculation
-7. **PDB2PQR**: PDB to PQR conversion
-8. **Reduce**: Protonation
-9. **PyMesh**: Mesh operations
-10. **MaSIF repository**: Cloned from GitHub
-11. **Helper scripts**: masif-site, masif-search, masif-ligand, masif-peptides
+3. **Python virtual environment**: Python 3.12 venv (AlphaFold3 pattern)
+4. **Python packages**: TensorFlow 2.16.2 with GPU support, BioPython, Open3D, etc.
+5. **GPU environment variables**: XLA, TensorFlow GPU optimization
+6. **MSMS**: Molecular surface computation
+7. **APBS**: Electrostatics calculation (v3.4.1)
+8. **PDB2PQR**: PDB to PQR conversion (pip)
+9. **Reduce**: Protonation
+10. **PyMesh**: Mesh operations
+11. **MaSIF repository**: Cloned from GitHub
+12. **Helper scripts**: masif-site, masif-search, masif-ligand, masif-peptides
 
 ---
 
@@ -486,26 +494,43 @@ git pull
 
 ## GPU Support
 
-**Note:** The current Docker container (v2.0) is CPU-only. This is sufficient for:
-- Data preparation
-- Running predictions on individual proteins
-- Small-scale analysis
+The current Docker container (v3.0) includes full GPU support with CUDA 12.6 and TensorFlow 2.16.2.
 
-For GPU-accelerated training and large-scale inference, you have two options:
+### Requirements
 
-### Option 1: Use the Legacy GPU Image
+- NVIDIA GPU with CUDA 12.x support
+- NVIDIA Driver 525+ (recommended 580+)
+- nvidia-container-toolkit installed on host
+
+### Running with GPU
 
 ```bash
-# Pull the older GPU-enabled image
-docker pull pablogainza/masif:latest
+# Run with all available GPUs
+docker run --gpus all -it masif
 
-# Run with GPU
-docker run --gpus all -it pablogainza/masif
+# Run with specific GPU
+docker run --gpus '"device=0"' -it masif
+
+# Run with multiple specific GPUs
+docker run --gpus '"device=0,1"' -it masif
 ```
 
-### Option 2: Native Installation with GPU
+### Verify GPU Access
 
-For production GPU workloads, consider native installation with TensorFlow-GPU. See the [Installation Guide](installation.md) for details.
+Inside the container:
+
+```bash
+python3 -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
+# Expected: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU'), ...]
+```
+
+### CPU-Only Mode
+
+The container also works without GPU:
+
+```bash
+docker run -it masif  # No --gpus flag
+```
 
 ### Performance Comparison
 
@@ -515,6 +540,21 @@ For production GPU workloads, consider native installation with TensorFlow-GPU. 
 | MaSIF-site inference | ~30 sec | ~2 sec | 15x |
 | MaSIF-search descriptors | ~45 sec | ~3 sec | 15x |
 | Training (1 epoch) | ~hours | ~minutes | 10-20x |
+
+### Installing nvidia-container-toolkit
+
+If you don't have nvidia-container-toolkit installed:
+
+```bash
+# Ubuntu/Debian
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | \
+    sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+sudo apt-get update
+sudo apt-get install -y nvidia-container-toolkit
+sudo systemctl restart docker
+```
 
 ---
 

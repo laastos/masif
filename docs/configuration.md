@@ -226,9 +226,9 @@ Required environment variables for external tools.
 |----------|-------------|--------------|
 | `MSMS_BIN` | MSMS executable | `/tools/msms/msms` |
 | `PDB2XYZRN` | PDB to XYZRN converter | `/tools/msms/pdb_to_xyzrn` |
-| `APBS_BIN` | APBS executable | `/tools/APBS-1.5/bin/apbs` |
-| `MULTIVALUE_BIN` | APBS multivalue tool | `/tools/APBS-1.5/share/apbs/tools/bin/multivalue` |
-| `PDB2PQR_BIN` | PDB2PQR executable | `/tools/pdb2pqr-2.1.1/pdb2pqr` |
+| `APBS_BIN` | APBS executable | `/tools/APBS-3.4.1.Linux/bin/apbs` |
+| `MULTIVALUE_BIN` | APBS multivalue tool | `/tools/APBS-3.4.1.Linux/share/apbs/tools/bin/multivalue` |
+| `PDB2PQR_BIN` | PDB2PQR executable | `pdb2pqr30` (installed via pip) |
 
 ### Reduce Tool
 
@@ -244,18 +244,37 @@ The `reduce` binary should be in `PATH`.
 |----------|-------------|--------------|
 | `PYMESH_PATH` | PyMesh installation directory | `/tools/PyMesh` |
 
+### GPU Environment Variables
+
+For GPU-accelerated TensorFlow, these variables optimize performance:
+
+| Variable | Value | Description |
+|----------|-------|-------------|
+| `XLA_FLAGS` | `--xla_gpu_enable_triton_gemm=false` | XLA compiler options |
+| `XLA_PYTHON_CLIENT_PREALLOCATE` | `true` | Pre-allocate GPU memory |
+| `XLA_CLIENT_MEM_FRACTION` | `0.95` | GPU memory fraction to use |
+| `TF_FORCE_GPU_ALLOW_GROWTH` | `true` | Dynamic GPU memory allocation |
+| `TF_CPP_MIN_LOG_LEVEL` | `2` | Reduce TensorFlow logging |
+| `TF_ENABLE_ONEDNN_OPTS` | `0` | Disable oneDNN optimizations |
+
 ### Setting Environment Variables
 
 ```bash
 # Add to ~/.bashrc or ~/.bash_profile
+
+# Tool paths
 export MSMS_BIN=/path/to/msms/msms
 export PDB2XYZRN=/path/to/msms/pdb_to_xyzrn
-export APBS_BIN=/path/to/apbs/bin/apbs
-export MULTIVALUE_BIN=/path/to/apbs/share/apbs/tools/bin/multivalue
-export PDB2PQR_BIN=/path/to/pdb2pqr/pdb2pqr
+export APBS_BIN=/path/to/APBS-3.4.1.Linux/bin/apbs
+export MULTIVALUE_BIN=/path/to/APBS-3.4.1.Linux/share/apbs/tools/bin/multivalue
+export PDB2PQR_BIN=$(which pdb2pqr30)
 export PATH=$PATH:/path/to/reduce/
 export REDUCE_HET_DICT=/path/to/reduce/reduce_wwPDB_het_dict.txt
 export PYMESH_PATH=/path/to/PyMesh
+
+# GPU optimization (optional)
+export TF_FORCE_GPU_ALLOW_GROWTH=true
+export TF_CPP_MIN_LOG_LEVEL=2
 ```
 
 ---

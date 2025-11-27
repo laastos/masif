@@ -52,9 +52,11 @@ python -c "from default_config.masif_opts import masif_opts; print('OK')"
 
 **Solution**:
 ```bash
-pip install tensorflow==1.9.0
-# Or for GPU
-pip install tensorflow-gpu==1.9.0
+# Install TensorFlow with GPU support
+pip install "tensorflow[and-cuda]==2.16.2"
+
+# Or CPU-only
+pip install tensorflow==2.16.2
 
 # Verify
 python -c "import tensorflow as tf; print(tf.__version__)"
@@ -245,10 +247,48 @@ ulimit -v unlimited
 # Reduce batch size in training script
 batch_size = 16  # Instead of 32 or 64
 
-# Or use memory growth
-config = tf.ConfigProto()
-config.gpu_options.allow_growth = True
-sess = tf.Session(config=config)
+# Or use memory growth (set in environment or code)
+import os
+os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+
+# Or in TensorFlow:
+import tensorflow as tf
+gpus = tf.config.experimental.list_physical_devices('GPU')
+for gpu in gpus:
+    tf.config.experimental.set_memory_growth(gpu, True)
+```
+
+#### GPU not detected
+
+**Cause**: CUDA not installed or TensorFlow not built with GPU support.
+
+**Solution**:
+```bash
+# Check if GPU is visible
+nvidia-smi
+
+# Check TensorFlow GPU support
+python3 -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
+
+# Expected output: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+
+# If empty, ensure tensorflow[and-cuda] was installed:
+pip install "tensorflow[and-cuda]==2.16.2"
+```
+
+#### CUDA version mismatch
+
+**Cause**: TensorFlow expects different CUDA version.
+
+**Solution**:
+```bash
+# Check CUDA version
+nvcc --version
+
+# For TensorFlow 2.16.2, CUDA 12.x is required
+# Install nvidia-container-toolkit for Docker GPU support
+sudo apt-get install nvidia-container-toolkit
+sudo systemctl restart docker
 ```
 
 #### NaN loss values
