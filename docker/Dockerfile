@@ -195,9 +195,14 @@ ENV PATH="/usr/local/bin:${PATH}"
 # Build PyMesh using its official build system and install via pip
 WORKDIR /opt
 ENV PYMESH_PATH=/opt/PyMesh
+# Note: PyMesh's bundled draco library needs patching for GCC 13+ (Ubuntu 24.04)
+# The hash_utils.h file is missing #include <cstddef> for size_t
 RUN git clone --depth 1 https://github.com/PyMesh/PyMesh.git && \
     cd PyMesh && \
     git submodule update --init --recursive && \
+    # Fix GCC 13+ compatibility: add missing #include <cstddef> to draco
+    sed -i '/#include <functional>/a #include <cstddef>' \
+        third_party/draco/src/draco/core/hash_utils.h && \
     python setup.py bdist_wheel && \
     pip install dist/pymesh2-*.whl && \
     python -c "import pymesh; print('PyMesh installed successfully')" && \
