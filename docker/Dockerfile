@@ -4,6 +4,69 @@
 # Build: docker build -t masif .
 # Run:   docker run --gpus all -it masif
 
+# ============================================================================
+# STAGE 1: Build PyMesh in Ubuntu 22.04 (GCC 11 compatible)
+# ============================================================================
+# PyMesh's bundled third-party libraries (mmg, tbb, draco) have GCC 13+
+# incompatibilities. Ubuntu 22.04's default GCC 11 works reliably.
+# We install Python 3.12 via deadsnakes PPA to ensure wheel compatibility.
+FROM ubuntu:22.04 AS pymesh-builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install PyMesh build dependencies and Python 3.12 from deadsnakes PPA
+RUN apt-get update && apt-get install -y \
+    software-properties-common \
+    && add-apt-repository -y ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y \
+    git \
+    cmake \
+    build-essential \
+    python3.12 \
+    python3.12-dev \
+    python3.12-venv \
+    libboost-all-dev \
+    libeigen3-dev \
+    libgmp-dev \
+    libgmpxx4ldbl \
+    libmpfr-dev \
+    libcgal-dev \
+    libtbb-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create Python 3.12 venv and install build tools
+RUN python3.12 -m venv /build_venv
+ENV PATH="/build_venv/bin:$PATH"
+RUN pip install --upgrade pip setuptools wheel numpy
+
+# Build PyMesh with Python 3.12
+# Note: draco header patches needed for Python 3.12 compatibility
+# Note: mmg has global variable definitions in headers causing multiple definition
+#       linker errors. We allow multiple definitions as a workaround.
+# Note: BOOST_BIND_GLOBAL_PLACEHOLDERS silences deprecation warning
+# Note: PyMesh's bundled pybind11 (2.2.x) is too old for Python 3.11+.
+#       We replace it with pybind11 2.11+ which supports Python 3.12.
+WORKDIR /opt
+ENV LDFLAGS="-Wl,--allow-multiple-definition"
+ENV CXXFLAGS="-DBOOST_BIND_GLOBAL_PLACEHOLDERS"
+RUN git clone --depth 1 https://github.com/PyMesh/PyMesh.git && \
+    cd PyMesh && \
+    git submodule update --init --recursive && \
+    # Fix missing C++ headers in draco (required for Python 3.12)
+    sed -i '/#include <functional>/a #include <cstddef>' \
+        third_party/draco/src/draco/core/hash_utils.h && \
+    sed -i '/#include <cctype>/a #include <limits>' \
+        third_party/draco/src/draco/io/parser_utils.cc && \
+    # Update pybind11 to version 2.11.1 (supports Python 3.12)
+    rm -rf third_party/pybind11 && \
+    git clone --depth 1 --branch v2.11.1 https://github.com/pybind/pybind11.git third_party/pybind11 && \
+    python setup.py bdist_wheel && \
+    cp dist/pymesh2-*.whl /tmp/ && \
+    python -c "import sys; print(f'PyMesh wheel built for Python {sys.version_info.major}.{sys.version_info.minor}')"
+
+# ============================================================================
+# STAGE 2: Final MaSIF container with GPU support
+# ============================================================================
 FROM nvidia/cuda:12.6.3-base-ubuntu24.04
 
 LABEL maintainer="MaSIF Team"
@@ -66,7 +129,7 @@ ENV PATH="/masif_venv/bin:$PATH"
 RUN pip install --upgrade pip setuptools wheel && \
     pip install \
     "tensorflow[and-cuda]==2.16.2" \
-    numpy \
+    "numpy<2.0" \
     scipy \
     matplotlib \
     ipython \
@@ -192,29 +255,22 @@ ENV PATH="/usr/local/bin:${PATH}"
 # ============================================================================
 # 9. Install PyMesh (Mesh Operations)
 # ============================================================================
-# PyMesh's bundled third-party libraries have GCC 13+ incompatibilities.
-# Solution: Install and use GCC 11 specifically for building PyMesh.
+# PyMesh wheel was built in Stage 1 using Ubuntu 22.04 (GCC 11) with Python 3.12.
+# Copy and install into the masif_venv (also Python 3.12).
 WORKDIR /opt
-ENV PYMESH_PATH=/opt/PyMesh
 
-# Install GCC 11 alongside GCC 14 (Ubuntu 24.04 default)
-RUN apt-get update && apt-get install -y gcc-11 g++-11 && \
-    rm -rf /var/lib/apt/lists/*
+# Copy PyMesh wheel from builder stage
+COPY --from=pymesh-builder /tmp/pymesh2-*.whl /tmp/
 
-RUN git clone --depth 1 https://github.com/PyMesh/PyMesh.git && \
-    cd PyMesh && \
-    git submodule update --init --recursive && \
-    # Fix missing C++ headers in draco (required even with GCC 11)
-    sed -i '/#include <functional>/a #include <cstddef>' \
-        third_party/draco/src/draco/core/hash_utils.h && \
-    sed -i '/#include <cctype>/a #include <limits>' \
-        third_party/draco/src/draco/io/parser_utils.cc && \
-    # Use GCC 11 for building PyMesh (avoids other GCC 13+ incompatibilities)
-    export CC=gcc-11 CXX=g++-11 && \
-    python setup.py bdist_wheel && \
-    pip install dist/pymesh2-*.whl && \
+# Install PyMesh into the masif_venv
+# Patch pymesh's __init__.py to fix NumPy 2.0 compatibility
+# (numpy.testing.Tester was removed in NumPy 2.0)
+RUN pip install /tmp/pymesh2-*.whl && \
+    PYMESH_INIT=$(python -c "import sys; print([p for p in sys.path if 'site-packages' in p][0])")/pymesh/__init__.py && \
+    sed -i '/from numpy.testing import Tester/d' "$PYMESH_INIT" && \
+    sed -i '/test = Tester().test/d' "$PYMESH_INIT" && \
     python -c "import pymesh; print('PyMesh installed successfully')" && \
-    cd / && rm -rf /opt/PyMesh
+    rm /tmp/pymesh2-*.whl
 
 # ============================================================================
 # 10. Clone MaSIF repository (modernized fork with Python 3/TF 2.x compatibility)
