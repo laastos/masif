@@ -195,9 +195,10 @@ ENV PATH="/usr/local/bin:${PATH}"
 # Build PyMesh using its official build system and install via pip
 WORKDIR /opt
 ENV PYMESH_PATH=/opt/PyMesh
-# Note: PyMesh's bundled draco library needs patching for GCC 13+ (Ubuntu 24.04)
-# - hash_utils.h is missing #include <cstddef> for size_t
-# - parser_utils.cc is missing #include <limits> for std::numeric_limits
+# Note: PyMesh's bundled libraries need patching for GCC 13+ (Ubuntu 24.04)
+# - draco: missing #include <cstddef> and #include <limits>
+# - tbb: -Wchanges-meaning treated as error
+# Solution: Use system TBB and add compiler flags to handle warnings
 RUN git clone --depth 1 https://github.com/PyMesh/PyMesh.git && \
     cd PyMesh && \
     git submodule update --init --recursive && \
@@ -206,6 +207,12 @@ RUN git clone --depth 1 https://github.com/PyMesh/PyMesh.git && \
         third_party/draco/src/draco/core/hash_utils.h && \
     sed -i '/#include <cctype>/a #include <limits>' \
         third_party/draco/src/draco/io/parser_utils.cc && \
+    # Remove bundled TBB to use system TBB (libtbb-dev)
+    rm -rf third_party/tbb && \
+    mkdir -p third_party/build/tbb && \
+    touch third_party/build/tbb/.done && \
+    # Build with relaxed warnings for GCC 13+
+    CXXFLAGS="-Wno-error=changes-meaning -Wno-error=dangling-reference" \
     python setup.py bdist_wheel && \
     pip install dist/pymesh2-*.whl && \
     python -c "import pymesh; print('PyMesh installed successfully')" && \
