@@ -192,25 +192,20 @@ ENV PATH="/usr/local/bin:${PATH}"
 # ============================================================================
 # 9. Install PyMesh (Mesh Operations)
 # ============================================================================
-# Build PyMesh using its official build system and install via pip
+# PyMesh's bundled third-party libraries have GCC 13+ incompatibilities.
+# Solution: Install and use GCC 11 specifically for building PyMesh.
 WORKDIR /opt
 ENV PYMESH_PATH=/opt/PyMesh
-# Note: PyMesh's bundled libraries need patching for GCC 13+ (Ubuntu 24.04)
-# - draco: missing #include <cstddef> and #include <limits>
-# - tbb: incompatible with GCC 13+, use system TBB instead
+
+# Install GCC 11 alongside GCC 14 (Ubuntu 24.04 default)
+RUN apt-get update && apt-get install -y gcc-11 g++-11 && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN git clone --depth 1 https://github.com/PyMesh/PyMesh.git && \
     cd PyMesh && \
     git submodule update --init --recursive && \
-    # Fix GCC 13+ compatibility: add missing includes to draco
-    sed -i '/#include <functional>/a #include <cstddef>' \
-        third_party/draco/src/draco/core/hash_utils.h && \
-    sed -i '/#include <cctype>/a #include <limits>' \
-        third_party/draco/src/draco/io/parser_utils.cc && \
-    # Patch build.py to skip TBB (use system libtbb-dev instead)
-    sed -i 's/def build(package, cleanup=True):/def build(package, cleanup=True):\n    if package == "tbb": return  # Skip TBB, use system version/' \
-        third_party/build.py && \
-    # Build with relaxed warnings for GCC 13+
-    CXXFLAGS="-Wno-error=changes-meaning -Wno-error=dangling-reference" \
+    # Use GCC 11 for building PyMesh (avoids GCC 13+ incompatibilities)
+    export CC=gcc-11 CXX=g++-11 && \
     python setup.py bdist_wheel && \
     pip install dist/pymesh2-*.whl && \
     python -c "import pymesh; print('PyMesh installed successfully')" && \
