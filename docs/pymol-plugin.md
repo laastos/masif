@@ -245,9 +245,9 @@ Higher scores indicate more likely protein-protein interaction sites.
 
 | Color | Meaning |
 |-------|---------|
-| Red | Low interaction probability |
+| Blue | Low interaction probability |
 | White | Medium probability |
-| Blue | High interaction probability |
+| Red | High interaction probability |
 
 Typical threshold: > 0.5 indicates likely interface
 
@@ -265,9 +265,9 @@ Range: Typically -5 to +5 kT/e
 
 | Color | Meaning |
 |-------|---------|
-| Purple/Magenta | Hydrophilic (polar) |
-| White | Intermediate |
-| Yellow/Orange | Hydrophobic (nonpolar) |
+| White | Hydrophilic (polar) |
+| Light Magenta | Intermediate |
+| Magenta | Hydrophobic (nonpolar) |
 
 Scale: Kyte-Doolittle (-4.5 to +4.5)
 
