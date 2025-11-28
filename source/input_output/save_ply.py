@@ -37,11 +37,8 @@ def save_ply(
         mesh.set_attribute("vertex_nz", n3)
     if charges is not None:
         mesh.add_attribute("charge")
-        # Note: Removed /10 normalization that caused double normalization issues.
-        # APBS outputs in kT/e units. Values are typically in [-30, 30] range.
-        # Downstream code (read_data_from_surface.py) clips to [-3, 3] and normalizes.
-        # The normalize_charges flag is kept for backwards compatibility but no longer
-        # performs division - it's a no-op marker that charges should be processed.
+        if normalize_charges:
+            charges = charges / 10
         mesh.set_attribute("charge", charges)
     if hbond is not None:
         mesh.add_attribute("hbond")
@@ -51,10 +48,7 @@ def save_ply(
         mesh.set_attribute("vertex_cb", vertex_cb)
     if hphob is not None:
         mesh.add_attribute("vertex_hphob")
-        # Normalize Kyte-Doolittle hydrophobicity scale from [-4.5, 4.5] to [-1, 1]
-        # This ensures consistent scale with other features for visualization
-        hphob_normalized = numpy.array(hphob) / 4.5
-        mesh.set_attribute("vertex_hphob", hphob_normalized)
+        mesh.set_attribute("vertex_hphob", hphob)
     if iface is not None:
         mesh.add_attribute("vertex_iface")
         mesh.set_attribute("vertex_iface", iface)
