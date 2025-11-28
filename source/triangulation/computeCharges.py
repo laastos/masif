@@ -16,6 +16,8 @@ from default_config.chemistry import (
     acceptorPlaneAtom,
     hbond_std_dev,
     donorAtom,
+    default_acceptor_angle,
+    his_acceptor_angle,
 )
 
 # Compute vertex charges based on hydrogen bond potential.
@@ -82,10 +84,13 @@ def computeChargeHelper(atom_name, res, v):
             a = res[acceptorAngleAtom[atom_name]].get_coord()
         except:
             return 0.0
-        # 120 degress for acceptor
-        angle_deviation = computeAngleDeviation(a, b, v, 2 * np.pi / 3)
-        # TODO: This should not be 120 for all atoms, i.e. for HIS it should be
-        #       ~125.0
+        # Use atom-specific acceptor angles
+        # Histidine ND1/NE2 use 125.5 degrees, others use 120 degrees
+        if res.get_resname() == "HIS" and atom_name in ["ND1", "NE2"]:
+            ideal_angle = his_acceptor_angle  # 125.5 degrees
+        else:
+            ideal_angle = default_acceptor_angle  # 120 degrees
+        angle_deviation = computeAngleDeviation(a, b, v, ideal_angle)
         angle_penalty = computeAnglePenalty(angle_deviation)
         plane_penalty = 1.0
         if atom_name in acceptorPlaneAtom:
@@ -139,14 +144,14 @@ def isAcceptorAtom(atom_name, res):
 
 
 # Compute the list of backbone C=O:H-N that are satisfied. These will be ignored.
-def computeSatisfied_CO_HN(atoms):
+def computeSatisfied_CO_HN(atoms, hbond_oh_cutoff=2.5):
     ns = NeighborSearch(atoms)
     satisfied_CO = set()
     satisfied_HN = set()
     for atom1 in atoms:
         res1 = atom1.get_parent()
         if atom1.get_id() == "O":
-            neigh_atoms = ns.search(atom1.get_coord(), 2.5, level="A")
+            neigh_atoms = ns.search(atom1.get_coord(), hbond_oh_cutoff, level="A")
             for atom2 in neigh_atoms:
                 if atom2.get_id() == "H":
                     res2 = atom2.get_parent()
@@ -179,14 +184,15 @@ def computeSatisfied_CO_HN(atoms):
 
 
 # Compute the charge of a new mesh, based on the charge of an old mesh.
-# Use the top vertex in distance, for now (later this should be smoothed over 3
-# or 4 vertices)
+# Uses configurable k nearest neighbors for interpolation.
 def assignChargesToNewMesh(new_vertices, old_vertices, old_charges, seeder_opts):
     dataset = old_vertices
     testset = new_vertices
     new_charges = np.zeros(len(new_vertices))
     if seeder_opts["feature_interpolation"]:
-        num_inter = 4  # Number of interpolation features
+        # Number of neighbors for interpolation (configurable, default 4)
+        # Lower values preserve sharp transitions; higher values smooth more
+        num_inter = seeder_opts.get("feature_interpolation_k", 4)
         # Assign k old vertices to each new vertex.
         kdt = KDTree(dataset)
         dists, result = kdt.query(testset, k=num_inter)

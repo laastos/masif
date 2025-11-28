@@ -150,3 +150,12 @@ acceptorAngleAtom["OG1"] = "CB"
 # Angle: OG1-HG1-X: 180
 donorAtom["HG1"] = "OG1"
 
+# Atom-specific acceptor angles (in radians)
+# Default is 120 degrees (2*pi/3) for most acceptors
+# HIS uses 125.5 degrees as documented in chemistry literature
+acceptorAngle = {}
+# Default angle for most oxygen acceptors
+default_acceptor_angle = 2 * np.pi / 3  # 120 degrees
+# Histidine nitrogen acceptors use 125.5 degrees
+his_acceptor_angle = 125.5 * np.pi / 180  # 125.5 degrees in radians
+

@@ -3,12 +3,12 @@ from numpy.linalg import norm
 import pymesh
 
 """
-fixmesh.py: Regularize a protein surface mesh. 
-- based on code from the PyMESH documentation. 
+fixmesh.py: Regularize a protein surface mesh.
+- based on code from the PyMESH documentation.
 """
 
 
-def fix_mesh(mesh, resolution, detail="normal"):
+def fix_mesh(mesh, resolution, detail="normal", compute_outer_hull=True):
     bbox_min, bbox_max = mesh.bbox;
     diag_len = norm(bbox_max - bbox_min);
     if detail == "normal":
@@ -44,10 +44,13 @@ def fix_mesh(mesh, resolution, detail="normal"):
 
     mesh = pymesh.resolve_self_intersection(mesh);
     mesh, __ = pymesh.remove_duplicated_faces(mesh);
-    mesh = pymesh.compute_outer_hull(mesh);
+    # Outer hull computation removes internal cavities and concave pockets.
+    # This can alter binding site geometry. Made optional for binding site analysis.
+    if compute_outer_hull:
+        mesh = pymesh.compute_outer_hull(mesh);
     mesh, __ = pymesh.remove_duplicated_faces(mesh);
     mesh, __ = pymesh.remove_obtuse_triangles(mesh, 179.0, 5);
     mesh, __ = pymesh.remove_isolated_vertices(mesh);
     mesh, _ = pymesh.remove_duplicated_vertices(mesh, 0.001)
-    
+
     return mesh

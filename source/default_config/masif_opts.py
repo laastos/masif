@@ -17,6 +17,28 @@ masif_opts["compute_iface"] = True
 masif_opts["mesh_res"] = 1.0
 masif_opts["feature_interpolation"] = True
 
+# Mesh regularization options
+# compute_outer_hull: If True, computes outer hull which removes internal cavities
+# and concave pockets. Set to False for binding site analysis where pocket geometry
+# is important.
+masif_opts["compute_outer_hull"] = True
+
+# Interface detection threshold (squared distance in Angstroms²)
+# Vertices with squared distance >= this threshold from the full complex surface
+# are marked as interface. Default 2.0 Å² = ~1.41 Å linear distance.
+masif_opts["iface_distance_threshold"] = 2.0
+
+# H-bond detection parameters
+# O---H cutoff distance for backbone saturation detection (Angstroms)
+masif_opts["hbond_oh_cutoff"] = 2.5
+
+# Feature interpolation parameters
+# Number of nearest neighbors to use for feature interpolation when
+# transferring features to regularized mesh. Lower values preserve sharp
+# transitions but may be noisier; higher values smooth features.
+# Set to 1 to use only nearest neighbor (no smoothing)
+masif_opts["feature_interpolation_k"] = 4
+
 
 # Coords params
 masif_opts["radius"] = 12.0

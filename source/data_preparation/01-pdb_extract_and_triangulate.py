@@ -68,7 +68,10 @@ faces2 = faces1
 
 # Fix the mesh.
 mesh = pymesh.form_mesh(vertices2, faces2)
-regular_mesh = fix_mesh(mesh, masif_opts['mesh_res'])
+# compute_outer_hull option controls whether internal cavities are removed.
+# Set to False in masif_opts for binding site analysis where pocket geometry matters.
+compute_outer_hull = masif_opts.get('compute_outer_hull', True)
+regular_mesh = fix_mesh(mesh, masif_opts['mesh_res'], compute_outer_hull=compute_outer_hull)
 
 # Compute the normals
 vertex_normal = compute_normal(regular_mesh.vertices, regular_mesh.faces)
@@ -93,14 +96,24 @@ regular_mesh.add_attribute("vertex_gaussian_curvature")
 K = regular_mesh.get_attribute("vertex_gaussian_curvature")
 
 elem = np.square(H) - K
-# Handle numerical issues where elem < 0
-elem[elem < 0] = 1e-8
+# Handle numerical issues where elem < 0 (theoretically impossible but can happen
+# due to floating point errors in curvature computation)
+elem[elem < 0] = 0.0
 k1 = H + np.sqrt(elem)
 k2 = H - np.sqrt(elem)
 
 # Shape index formula (normalized to [-1, 1])
-si = (k1 + k2) / (k1 - k2)
+# Handle division by near-zero: when k1 ≈ k2 (umbilical points/flat regions),
+# the ratio approaches infinity. We use np.divide with handling for this case.
+denominator = k1 - k2
+# Set small denominators to a small positive value to avoid division by zero
+# This results in si ≈ ±1 for nearly flat regions, which is geometrically correct
+small_threshold = 1e-10
+denominator[np.abs(denominator) < small_threshold] = small_threshold
+si = (k1 + k2) / denominator
 si = np.arctan(si) * (2 / np.pi)
+# Clip to valid range to handle any remaining numerical issues
+si = np.clip(si, -1.0, 1.0)
 
 iface = np.zeros(len(regular_mesh.vertices))
 if 'compute_iface' in masif_opts and masif_opts['compute_iface']:
@@ -118,7 +131,9 @@ if 'compute_iface' in masif_opts and masif_opts['compute_iface']:
     d, r = kdt.query(regular_mesh.vertices)
     d = np.square(d) # Square d, because this is how it was in the pyflann version.
     assert(len(d) == len(regular_mesh.vertices))
-    iface_v = np.where(d >= 2.0)[0]
+    # Use configurable interface distance threshold (default 2.0 Å² = ~1.41 Å linear)
+    iface_threshold = masif_opts.get('iface_distance_threshold', 2.0)
+    iface_v = np.where(d >= iface_threshold)[0]
     iface[iface_v] = 1.0
     # Convert to ply and save.
     save_ply(out_filename1+".ply", regular_mesh.vertices,\
