@@ -253,37 +253,6 @@ def load_ply(
         group_names = group_names + " " + name
 
     obj = []
-    # Draw shape index
-    if (
-        "vertex_si" in mesh.get_attribute_names()
-        and "vertex_nx" in mesh.get_attribute_names()
-    ):
-        si = mesh.get_attribute("vertex_si")
-        color_array_surf = charge_color(si)
-        for tri in faces:
-            vert1 = verts[int(tri[0])]
-            vert2 = verts[int(tri[1])]
-            vert3 = verts[int(tri[2])]
-            na = normals[int(tri[0])]
-            nb = normals[int(tri[1])]
-            nc = normals[int(tri[2])]
-            obj.extend([BEGIN, TRIANGLES])
-            # obj.extend([ALPHA, 0.5])
-            obj.extend(color_array_surf[int(tri[0])])
-            obj.extend([NORMAL, (na[0]), (na[1]), (na[2])])
-            obj.extend([VERTEX, (vert1[0]), (vert1[1]), (vert1[2])])
-            obj.extend(color_array_surf[int(tri[1])])
-            obj.extend([NORMAL, (nb[0]), (nb[1]), (nb[2])])
-            obj.extend([VERTEX, (vert2[0]), (vert2[1]), (vert2[2])])
-            obj.extend(color_array_surf[int(tri[2])])
-            obj.extend([NORMAL, (nc[0]), (nc[1]), (nc[2])])
-            obj.extend([VERTEX, (vert3[0]), (vert3[1]), (vert3[2])])
-            obj.append(END)
-        name = "si_" + filename
-        cmd.load_cgo(obj, name, 1.0)
-        obj = []
-
-    obj = []
     # Draw ddc
     if (
         "vertex_ddc" in mesh.get_attribute_names()

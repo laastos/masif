@@ -97,16 +97,20 @@ When you load a PLY file, the plugin creates multiple PyMOL objects:
 
 ### Object Types
 
-| Prefix | Feature | Description |
-|--------|---------|-------------|
-| `mesh_` | Mesh | Triangulated surface wireframe |
-| `vert_` | Vertices | Surface vertices as spheres |
-| `pb_` | Electrostatics | Poisson-Boltzmann potential |
-| `hphobic_` | Hydrophobicity | Kyte-Doolittle scale |
-| `si_` | Shape Index | Local curvature measure |
-| `ddc_` | DDC | Distance-dependent curvature |
-| `iface_` | Interface | Predicted interaction sites |
-| `hbond_` | H-bonds | Hydrogen bond potential |
+Objects are created only if the corresponding attribute exists in the PLY file.
+
+| Prefix | Feature | PLY Attribute | Description |
+|--------|---------|---------------|-------------|
+| `mesh_` | Mesh | (always) | Triangulated surface wireframe |
+| `vert_` | Vertices | (always) | Surface vertices as spheres |
+| `pb_` | Electrostatics | `vertex_charge` | Poisson-Boltzmann potential |
+| `hphobic_` | Hydrophobicity | `vertex_hphob` | Kyte-Doolittle scale |
+| `iface_` | Interface | `vertex_iface` | Predicted interaction sites |
+| `hbond_` | H-bonds | `vertex_hbond` | Hydrogen bond potential |
+| `ddc_` | DDC | `vertex_ddc` | Distance-dependent curvature (optional) |
+| `si_` | Shape Index | `vertex_si` | Local curvature measure (optional) |
+
+**Note:** The `si_` (shape index) and `ddc_` (distance-dependent curvature) layers only appear if these attributes were saved in the PLY file during preprocessing. Standard MaSIF-site output typically includes: `iface`, `charge`, `hbond`, `hphob`, and normals (`nx`, `ny`, `nz`).
 
 ### Viewing Different Features
 
@@ -271,7 +275,9 @@ Range: Typically -5 to +5 kT/e
 
 Scale: Kyte-Doolittle (-4.5 to +4.5)
 
-### Shape Index (si_)
+### Shape Index (si_) - Optional
+
+Only available if `vertex_si` attribute exists in the PLY file.
 
 | Color | Meaning |
 |-------|---------|
