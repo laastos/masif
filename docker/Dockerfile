@@ -154,41 +154,43 @@ RUN mkdir msms && \
     ln -s /opt/msms/msms.x86_64Linux2.2.6.1 /opt/msms/msms
 
 # Create pdb_to_xyzrn script
-RUN echo '#!/usr/bin/env python\n\
-import sys\n\
-import os\n\
-from Bio.PDB import PDBParser\n\
-\n\
-radii = {"N": "1.540000", "O": "1.400000", "C": "1.740000", "H": "1.200000", "S": "1.800000", "P": "1.800000", "Z": "1.390000", "X": "0.770000"}\n\
-polarHydrogens = {"ALA": ["H"], "GLY": ["H"], "SER": ["H", "HG"], "THR": ["H", "HG1"], "LEU": ["H"], "ILE": ["H"], "VAL": ["H"], "ASN": ["H", "HD21", "HD22"], "GLN": ["H", "HE21", "HE22"], "ARG": ["H", "HH11", "HH12", "HH21", "HH22", "HE"], "HIS": ["H", "HD1", "HE2"], "TRP": ["H", "HE1"], "PHE": ["H"], "TYR": ["H", "HH"], "GLU": ["H"], "ASP": ["H"], "LYS": ["H", "HZ1", "HZ2", "HZ3"], "PRO": [], "CYS": ["H"], "MET": ["H"]}\n\
-\n\
-def get_type(atom_name, res_name):\n\
-    if atom_name[0] in radii:\n\
-        return atom_name[0]\n\
-    elif atom_name[0:2] == "CL":\n\
-        return "C"\n\
-    else:\n\
-        return "X"\n\
-\n\
-if len(sys.argv) < 2:\n\
-    print("Usage: pdb_to_xyzrn <pdb_file>")\n\
-    sys.exit(1)\n\
-\n\
-pdb_file = sys.argv[1]\n\
-parser = PDBParser(QUIET=True)\n\
-structure = parser.get_structure("protein", pdb_file)\n\
-\n\
-for model in structure:\n\
-    for chain in model:\n\
-        for residue in chain:\n\
-            res_name = residue.get_resname()\n\
-            for atom in residue:\n\
-                atom_name = atom.get_name()\n\
-                coords = atom.get_coord()\n\
-                atom_type = get_type(atom_name, res_name)\n\
-                radius = radii.get(atom_type, "1.500000")\n\
-                print("{:.6f} {:.6f} {:.6f} {} 1 {}_{}_{}".format(coords[0], coords[1], coords[2], radius, res_name, residue.get_id()[1], atom_name))\n\
-' > /opt/msms/pdb_to_xyzrn && chmod +x /opt/msms/pdb_to_xyzrn
+RUN cat > /opt/msms/pdb_to_xyzrn << 'SCRIPT'
+#!/usr/bin/env python
+import sys
+import os
+from Bio.PDB import PDBParser
+
+radii = {"N": "1.540000", "O": "1.400000", "C": "1.740000", "H": "1.200000", "S": "1.800000", "P": "1.800000", "Z": "1.390000", "X": "0.770000"}
+polarHydrogens = {"ALA": ["H"], "GLY": ["H"], "SER": ["H", "HG"], "THR": ["H", "HG1"], "LEU": ["H"], "ILE": ["H"], "VAL": ["H"], "ASN": ["H", "HD21", "HD22"], "GLN": ["H", "HE21", "HE22"], "ARG": ["H", "HH11", "HH12", "HH21", "HH22", "HE"], "HIS": ["H", "HD1", "HE2"], "TRP": ["H", "HE1"], "PHE": ["H"], "TYR": ["H", "HH"], "GLU": ["H"], "ASP": ["H"], "LYS": ["H", "HZ1", "HZ2", "HZ3"], "PRO": [], "CYS": ["H"], "MET": ["H"]}
+
+def get_type(atom_name, res_name):
+    if atom_name[0] in radii:
+        return atom_name[0]
+    elif atom_name[0:2] == "CL":
+        return "C"
+    else:
+        return "X"
+
+if len(sys.argv) < 2:
+    print("Usage: pdb_to_xyzrn <pdb_file>")
+    sys.exit(1)
+
+pdb_file = sys.argv[1]
+parser = PDBParser(QUIET=True)
+structure = parser.get_structure("protein", pdb_file)
+
+for model in structure:
+    for chain in model:
+        for residue in chain:
+            res_name = residue.get_resname()
+            for atom in residue:
+                atom_name = atom.get_name()
+                coords = atom.get_coord()
+                atom_type = get_type(atom_name, res_name)
+                radius = radii.get(atom_type, "1.500000")
+                print("{:.6f} {:.6f} {:.6f} {} 1 {}_{}_{}".format(coords[0], coords[1], coords[2], radius, res_name, residue.get_id()[1], atom_name))
+SCRIPT
+RUN chmod +x /opt/msms/pdb_to_xyzrn
 
 ENV MSMS_BIN=/opt/msms/msms
 ENV PDB2XYZRN=/opt/msms/pdb_to_xyzrn
@@ -215,7 +217,7 @@ RUN pip install pdb2pqr
 
 # Create wrapper script for compatibility with MaSIF's expected path
 RUN mkdir -p /opt/pdb2pqr-linux-bin64-2.1.1 && \
-    echo '#!/bin/bash\npdb2pqr30 "$@"' > /opt/pdb2pqr-linux-bin64-2.1.1/pdb2pqr && \
+    printf '#!/bin/bash\npdb2pqr30 "$@"\n' > /opt/pdb2pqr-linux-bin64-2.1.1/pdb2pqr && \
     chmod +x /opt/pdb2pqr-linux-bin64-2.1.1/pdb2pqr
 
 ENV PDB2PQR_BIN=/opt/pdb2pqr-linux-bin64-2.1.1/pdb2pqr
@@ -276,25 +278,27 @@ RUN git clone https://github.com/laastos/masif.git
 
 # Apply GPU configuration for MaSIF with NGC TensorFlow
 # NGC container already has Blackwell support, we just need TF v1 compat mode
-RUN echo 'import os\n\
-# Reduce TensorFlow logging verbosity\n\
-os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")\n\
-\n\
-import tensorflow.compat.v1 as tf\n\
-tf.disable_eager_execution()\n\
-\n\
-# Configure GPU memory growth to avoid OOM errors\n\
-try:\n\
-    gpus = tf.config.experimental.list_physical_devices("GPU")\n\
-    if gpus:\n\
-        for gpu in gpus:\n\
-            tf.config.experimental.set_memory_growth(gpu, True)\n\
-        print(f"Configured {len(gpus)} GPU(s) with memory growth")\n\
-except Exception as e:\n\
-    pass  # GPU configuration may fail on CPU-only systems\n\
-' > /masif/source/gpu_setup.py && \
-    # Add import to MaSIF modules (prepend import statement)
-    for f in /masif/source/masif_modules/MaSIF_site.py \
+RUN cat > /masif/source/gpu_setup.py << 'SCRIPT'
+import os
+# Reduce TensorFlow logging verbosity
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+
+import tensorflow.compat.v1 as tf
+tf.disable_eager_execution()
+
+# Configure GPU memory growth to avoid OOM errors
+try:
+    gpus = tf.config.experimental.list_physical_devices("GPU")
+    if gpus:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        print(f"Configured {len(gpus)} GPU(s) with memory growth")
+except Exception as e:
+    pass  # GPU configuration may fail on CPU-only systems
+SCRIPT
+
+# Add import to MaSIF modules (prepend import statement)
+RUN for f in /masif/source/masif_modules/MaSIF_site.py \
              /masif/source/masif_modules/MaSIF_ppi_search.py \
              /masif/source/masif_modules/MaSIF_ligand.py; do \
         if [ -f "$f" ]; then \
