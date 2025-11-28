@@ -310,72 +310,80 @@ ENV PYTHONPATH="/masif/source"
 # ============================================================================
 
 # Create masif-site runner script
-RUN echo '#!/bin/bash\n\
-cd /masif/data/masif_site\n\
-if [ "$1" == "prepare" ]; then\n\
-    shift\n\
-    ./data_prepare_one.sh "$@"\n\
-elif [ "$1" == "predict" ]; then\n\
-    shift\n\
-    ./predict_site.sh "$@"\n\
-elif [ "$1" == "color" ]; then\n\
-    shift\n\
-    ./color_site.sh "$@"\n\
-else\n\
-    echo "Usage: masif-site <prepare|predict|color> <PDB_CHAIN>"\n\
-    echo "Example: masif-site prepare 4ZQK_A"\n\
-fi\n\
-' > /usr/local/bin/masif-site && chmod +x /usr/local/bin/masif-site
+RUN cat > /usr/local/bin/masif-site << 'SCRIPT'
+#!/bin/bash
+cd /masif/data/masif_site
+if [ "$1" == "prepare" ]; then
+    shift
+    ./data_prepare_one.sh "$@"
+elif [ "$1" == "predict" ]; then
+    shift
+    ./predict_site.sh "$@"
+elif [ "$1" == "color" ]; then
+    shift
+    ./color_site.sh "$@"
+else
+    echo "Usage: masif-site <prepare|predict|color> <PDB_CHAIN>"
+    echo "Example: masif-site prepare 4ZQK_A"
+fi
+SCRIPT
+RUN chmod +x /usr/local/bin/masif-site
 
 # Create masif-search runner script
-RUN echo '#!/bin/bash\n\
-cd /masif/data/masif_ppi_search\n\
-if [ "$1" == "prepare" ]; then\n\
-    shift\n\
-    ./data_prepare_one.sh "$@"\n\
-elif [ "$1" == "descriptors" ]; then\n\
-    shift\n\
-    ./compute_descriptors.sh "$@"\n\
-elif [ "$1" == "gif" ]; then\n\
-    shift\n\
-    ./compute_gif_descriptors.sh "$@"\n\
-else\n\
-    echo "Usage: masif-search <prepare|descriptors|gif> <PDB_CHAIN>"\n\
-    echo "Example: masif-search prepare 4ZQK_A_B"\n\
-fi\n\
-' > /usr/local/bin/masif-search && chmod +x /usr/local/bin/masif-search
+RUN cat > /usr/local/bin/masif-search << 'SCRIPT'
+#!/bin/bash
+cd /masif/data/masif_ppi_search
+if [ "$1" == "prepare" ]; then
+    shift
+    ./data_prepare_one.sh "$@"
+elif [ "$1" == "descriptors" ]; then
+    shift
+    ./compute_descriptors.sh "$@"
+elif [ "$1" == "gif" ]; then
+    shift
+    ./compute_gif_descriptors.sh "$@"
+else
+    echo "Usage: masif-search <prepare|descriptors|gif> <PDB_CHAIN>"
+    echo "Example: masif-search prepare 4ZQK_A_B"
+fi
+SCRIPT
+RUN chmod +x /usr/local/bin/masif-search
 
 # Create masif-ligand runner script
-RUN echo '#!/bin/bash\n\
-cd /masif/data/masif_ligand\n\
-if [ "$1" == "prepare" ]; then\n\
-    shift\n\
-    ./data_prepare_one.sh "$@"\n\
-elif [ "$1" == "evaluate" ]; then\n\
-    ./evaluate_test.sh\n\
-else\n\
-    echo "Usage: masif-ligand <prepare|evaluate> [PDB_CHAIN]"\n\
-    echo "Example: masif-ligand prepare 1ABC_A_ADP"\n\
-fi\n\
-' > /usr/local/bin/masif-ligand && chmod +x /usr/local/bin/masif-ligand
+RUN cat > /usr/local/bin/masif-ligand << 'SCRIPT'
+#!/bin/bash
+cd /masif/data/masif_ligand
+if [ "$1" == "prepare" ]; then
+    shift
+    ./data_prepare_one.sh "$@"
+elif [ "$1" == "evaluate" ]; then
+    ./evaluate_test.sh
+else
+    echo "Usage: masif-ligand <prepare|evaluate> [PDB_CHAIN]"
+    echo "Example: masif-ligand prepare 1ABC_A_ADP"
+fi
+SCRIPT
+RUN chmod +x /usr/local/bin/masif-ligand
 
 # Create masif-peptides runner script
-RUN echo '#!/bin/bash\n\
-cd /masif/data/masif_peptides\n\
-if [ "$1" == "extract" ]; then\n\
-    shift\n\
-    ./data_extract_helix_one.sh "$@"\n\
-elif [ "$1" == "precompute" ]; then\n\
-    shift\n\
-    ./data_precompute_patches_one.sh "$@"\n\
-elif [ "$1" == "predict" ]; then\n\
-    shift\n\
-    ./predict_site.sh "$@"\n\
-else\n\
-    echo "Usage: masif-peptides <extract|precompute|predict> <PDB_CHAIN>"\n\
-    echo "Example: masif-peptides extract 1ABC_A"\n\
-fi\n\
-' > /usr/local/bin/masif-peptides && chmod +x /usr/local/bin/masif-peptides
+RUN cat > /usr/local/bin/masif-peptides << 'SCRIPT'
+#!/bin/bash
+cd /masif/data/masif_peptides
+if [ "$1" == "extract" ]; then
+    shift
+    ./data_extract_helix_one.sh "$@"
+elif [ "$1" == "precompute" ]; then
+    shift
+    ./data_precompute_patches_one.sh "$@"
+elif [ "$1" == "predict" ]; then
+    shift
+    ./predict_site.sh "$@"
+else
+    echo "Usage: masif-peptides <extract|precompute|predict> <PDB_CHAIN>"
+    echo "Example: masif-peptides extract 1ABC_A"
+fi
+SCRIPT
+RUN chmod +x /usr/local/bin/masif-peptides
 
 # ============================================================================
 # 12. Set working directory and default command
