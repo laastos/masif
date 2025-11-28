@@ -86,6 +86,22 @@ if masif_opts['use_hphob']:
 if masif_opts['use_apbs']:
     vertex_charges = computeAPBS(regular_mesh.vertices, out_filename1+".pdb", out_filename1)
 
+# Compute shape index from mesh curvatures
+regular_mesh.add_attribute("vertex_mean_curvature")
+H = regular_mesh.get_attribute("vertex_mean_curvature")
+regular_mesh.add_attribute("vertex_gaussian_curvature")
+K = regular_mesh.get_attribute("vertex_gaussian_curvature")
+
+elem = np.square(H) - K
+# Handle numerical issues where elem < 0
+elem[elem < 0] = 1e-8
+k1 = H + np.sqrt(elem)
+k2 = H - np.sqrt(elem)
+
+# Shape index formula (normalized to [-1, 1])
+si = (k1 + k2) / (k1 - k2)
+si = np.arctan(si) * (2 / np.pi)
+
 iface = np.zeros(len(regular_mesh.vertices))
 if 'compute_iface' in masif_opts and masif_opts['compute_iface']:
     # Compute the surface of the entire complex and from that compute the interface.
@@ -108,13 +124,14 @@ if 'compute_iface' in masif_opts and masif_opts['compute_iface']:
     save_ply(out_filename1+".ply", regular_mesh.vertices,\
                         regular_mesh.faces, normals=vertex_normal, charges=vertex_charges,\
                         normalize_charges=True, hbond=vertex_hbond, hphob=vertex_hphobicity,\
-                        iface=iface)
+                        iface=iface, shape_index=si)
 
 else:
     # Convert to ply and save.
     save_ply(out_filename1+".ply", regular_mesh.vertices,\
                         regular_mesh.faces, normals=vertex_normal, charges=vertex_charges,\
-                        normalize_charges=True, hbond=vertex_hbond, hphob=vertex_hphobicity)
+                        normalize_charges=True, hbond=vertex_hbond, hphob=vertex_hphobicity,\
+                        shape_index=si)
 if not os.path.exists(masif_opts['ply_chain_dir']):
     os.makedirs(masif_opts['ply_chain_dir'])
 if not os.path.exists(masif_opts['pdb_chain_dir']):

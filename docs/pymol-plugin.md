@@ -108,9 +108,9 @@ Objects are created only if the corresponding attribute exists in the PLY file.
 | `iface_` | Interface | `vertex_iface` | Predicted interaction sites |
 | `hbond_` | H-bonds | `vertex_hbond` | Hydrogen bond potential |
 | `ddc_` | DDC | `vertex_ddc` | Distance-dependent curvature (optional) |
-| `si_` | Shape Index | `vertex_si` | Local curvature measure (optional) |
+| `si_` | Shape Index | `vertex_si` | Local curvature measure |
 
-**Note:** The `si_` (shape index) and `ddc_` (distance-dependent curvature) layers only appear if these attributes were saved in the PLY file during preprocessing. Standard MaSIF-site output typically includes: `iface`, `charge`, `hbond`, `hphob`, and normals (`nx`, `ny`, `nz`).
+**Note:** The `ddc_` (distance-dependent curvature) layer only appears if computed during preprocessing. Standard MaSIF-site output includes: `iface`, `charge`, `hbond`, `hphob`, `si`, and normals (`nx`, `ny`, `nz`).
 
 ### Viewing Different Features
 
@@ -275,9 +275,9 @@ Range: Typically -5 to +5 kT/e
 
 Scale: Kyte-Doolittle (-4.5 to +4.5)
 
-### Shape Index (si_) - Optional
+### Shape Index (si_)
 
-Only available if `vertex_si` attribute exists in the PLY file.
+Computed from mesh curvatures during surface triangulation.
 
 | Color | Meaning |
 |-------|---------|

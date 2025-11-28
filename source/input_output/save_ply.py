@@ -17,6 +17,7 @@ def save_ply(
     hbond=None,
     hphob=None,
     iface=None,
+    shape_index=None,
     normalize_charges=False,
 ):
     """ Save vertices, mesh in ply format.
@@ -51,6 +52,10 @@ def save_ply(
     if iface is not None:
         mesh.add_attribute("vertex_iface")
         mesh.set_attribute("vertex_iface", iface)
+
+    if shape_index is not None:
+        mesh.add_attribute("vertex_si")
+        mesh.set_attribute("vertex_si", shape_index)
 
     pymesh.save_mesh(
         filename, mesh, *mesh.get_attribute_names(), use_float=True, ascii=True
