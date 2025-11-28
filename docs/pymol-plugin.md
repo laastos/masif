@@ -65,6 +65,26 @@ Example:
 loadply 4ZQK_A.ply
 ```
 
+### Loading with Patches (Recommended)
+
+Load surface and compute interaction patches in a single command:
+
+```
+# Load surface with default patches (top 100, radius 9.0Å)
+loadply protein.ply, patches=1
+
+# Custom patch parameters
+loadply protein.ply, patches=1, top_k=50, patch_radius=12.0
+
+# With mesh visualization instead of spheres
+loadply protein.ply, patches=1, top_k=50, patch_mode=mesh
+
+# Filter by interface score
+loadply protein.ply, patches=1, iface_cutoff=0.5
+```
+
+This is more efficient than running `loadply` followed by `loadpatches` separately, as the mesh is only loaded once.
+
 ### Loading from Predictions
 
 After running MaSIF-site predictions:
@@ -143,7 +163,19 @@ Patch visualization requires NetworkX:
 pip install networkx
 ```
 
-### Commands
+### Recommended: Integrated Loading
+
+The easiest way to load surfaces with patches is using the `patches` parameter in `loadply`:
+
+```
+loadply protein.ply, patches=1, top_k=50
+```
+
+This loads the mesh once and computes patches immediately. See [Loading with Patches](#loading-with-patches-recommended) above.
+
+### Alternative: Separate Commands
+
+If you need to load patches separately (e.g., from a pre-computed JSON file), use these commands:
 
 | Command | Description |
 |---------|-------------|
@@ -152,7 +184,7 @@ pip install networkx
 | `showpatch` | Show/hide individual patches |
 | `listpatches` | List all loaded patch data |
 
-### Computing Patches On-the-fly
+### Computing Patches On-the-fly (Separate Command)
 
 ```
 # Basic usage - top 100 patches with default settings

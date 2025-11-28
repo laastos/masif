@@ -109,7 +109,8 @@ def charge_color(charges):
 
 
 def load_ply(
-    filename, color="white", name="ply", dotSize=0.2, lineSize=0.5, doStatistics=False
+    filename, color="white", name="ply", dotSize=0.2, lineSize=0.5, doStatistics=False,
+    patches=0, top_k=100, patch_radius=9.0, iface_cutoff=0.0, patch_mode='spheres'
 ):
     ## Pymesh should be faster and supports binary ply files. However it is difficult to install with pymol...
     #        import pymesh
@@ -127,6 +128,7 @@ def load_ply(
     group_names = ""
 
     verts = mesh.vertices
+    normals = None  # Initialize normals
     try:
         charge = mesh.get_attribute("vertex_charge")
         color_array = charge_color(charge)
@@ -387,6 +389,65 @@ def load_ply(
 
     print(group_names)
     cmd.group(filename, group_names)
+
+    # Optionally compute and display patches (avoids loading mesh twice)
+    patches = int(patches)
+    if patches:
+        top_k = int(top_k)
+        patch_radius = float(patch_radius)
+        iface_cutoff = float(iface_cutoff)
+
+        print(f"\nComputing top {top_k} patches with radius={patch_radius}A...")
+
+        # Compute patches using the already-loaded mesh
+        patch_result = mesh.get_top_patches(
+            top_k=top_k,
+            radius=patch_radius,
+            iface_cutoff=iface_cutoff
+        )
+
+        # Store for later use
+        base_name = os.path.basename(filename).replace('.ply', '')
+        _patch_data[base_name] = {
+            'mesh': mesh,
+            'patches': patch_result,
+            'verts': verts,
+            'faces': faces,
+            'normals': normals
+        }
+
+        # Visualize patches
+        patch_group_name = f"patches_{base_name}"
+        patch_names = []
+
+        print(f"Visualizing {len(patch_result['centers'])} patches in '{patch_mode}' mode...")
+
+        for i, (center, score, patch_verts) in enumerate(zip(
+                patch_result['centers'],
+                patch_result['scores'],
+                patch_result['vertex_indices'])):
+
+            color_rgb = generate_distinct_color(i, len(patch_result['centers']))
+
+            if patch_mode == 'spheres':
+                obj = _visualize_patch_spheres(verts, patch_verts, color_rgb, 0.6)
+                patch_name = f"patch_{i+1}_spheres"
+            elif patch_mode == 'mesh':
+                obj = _visualize_patch_mesh(verts, faces, patch_verts, color_rgb, normals)
+                patch_name = f"patch_{i+1}_mesh"
+            else:
+                obj = _visualize_patch_spheres(verts, patch_verts, color_rgb, 0.6)
+                patch_name = f"patch_{i+1}_spheres"
+
+            if obj:
+                cmd.load_cgo(obj, patch_name, 1.0)
+                patch_names.append(patch_name)
+
+        # Group all patches
+        if patch_names:
+            cmd.group(patch_group_name, " ".join(patch_names))
+
+        print(f"Created patch group '{patch_group_name}' with {len(patch_names)} patches.")
 
 
 # Load the sillouete of an iface.
