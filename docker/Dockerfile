@@ -1,8 +1,11 @@
-# MaSIF Docker Container (GPU-Enabled)
+# MaSIF Docker Container (GPU-Enabled with Blackwell Support)
 # Includes all tools: MaSIF-site, MaSIF-search, MaSIF-ligand, MaSIF-peptides
 #
 # Build: docker build -t masif .
-# Run:   docker run --gpus all -it masif
+# Run:   docker run --gpus all --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 -it masif
+#
+# Blackwell GPU Support: Uses NVIDIA NGC TensorFlow 25.01 container with
+# CUDA 12.8 and cuDNN 9.7 for compute capability 12.0 support.
 
 # ============================================================================
 # STAGE 1: Build PyMesh in Ubuntu 22.04 (GCC 11 compatible)
@@ -65,28 +68,26 @@ RUN git clone --depth 1 https://github.com/PyMesh/PyMesh.git && \
     python -c "import sys; print(f'PyMesh wheel built for Python {sys.version_info.major}.{sys.version_info.minor}')"
 
 # ============================================================================
-# STAGE 2: Final MaSIF container with GPU support
+# STAGE 2: Final MaSIF container with Blackwell GPU support
 # ============================================================================
-# Use plain Ubuntu - TensorFlow 2.16.2[and-cuda] bundles its own CUDA 12.3 libraries
-# This avoids conflicts between system CUDA and TensorFlow's bundled CUDA
-# GPU access is provided by nvidia-container-toolkit on the host
-FROM ubuntu:24.04
+# Use NVIDIA NGC TensorFlow 25.01 container which has native Blackwell support
+# - TensorFlow 2.17.1 with Blackwell optimizations
+# - CUDA 12.8.0 and cuDNN 9.7.0 (supports compute capability 12.0)
+# - Python 3.12.3
+# - Ubuntu 24.04.1 LTS base
+FROM nvcr.io/nvidia/tensorflow:25.01-tf2-py3
 
 LABEL maintainer="MaSIF Team"
-LABEL description="MaSIF - Molecular Surface Interaction Fingerprints (GPU)"
-LABEL version="3.0"
+LABEL description="MaSIF - Molecular Surface Interaction Fingerprints (GPU with Blackwell support)"
+LABEL version="3.1"
 
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
-ENV LANG=C.UTF-8
-ENV LC_ALL=C.UTF-8
 
 # ============================================================================
 # 1. Install system dependencies
 # ============================================================================
-# Note: Ubuntu 24.04 changes:
-# - libgl1-mesa-glx -> libgl1
-# - Python 3.12 is the default (TensorFlow 2.16 supports Python 3.9-3.12)
+# NGC container is based on Ubuntu 24.04, install additional dependencies
 RUN apt-get update && apt-get install -y \
     wget \
     curl \
@@ -113,29 +114,14 @@ RUN apt-get update && apt-get install -y \
     liblapack-dev \
     libtbb-dev \
     nlohmann-json3-dev \
-    python3 \
-    python3-dev \
-    python3-venv \
-    python3-pip \
-    software-properties-common \
     && rm -rf /var/lib/apt/lists/*
 
 # ============================================================================
-# 2. Create Python virtual environment (AlphaFold3 pattern)
+# 2. Install additional Python packages (TensorFlow is pre-installed in NGC)
 # ============================================================================
-RUN python3 -m venv /masif_venv
-ENV PATH="/masif_venv/bin:$PATH"
-
-# ============================================================================
-# 3. Install Python packages with GPU-enabled TensorFlow
-# ============================================================================
-RUN pip install --upgrade pip setuptools wheel && \
-    pip install \
-    "tensorflow[and-cuda]==2.18.0" \
-    "numpy<2.0" \
-    scipy \
-    matplotlib \
-    ipython \
+# NGC container already has TensorFlow, numpy, scipy, etc.
+# Install additional packages needed by MaSIF
+RUN pip install --no-cache-dir \
     biopython \
     scikit-learn \
     networkx \
@@ -146,39 +132,12 @@ RUN pip install --upgrade pip setuptools wheel && \
     SBILib
 
 # ============================================================================
-# 4. GPU Environment Variables for TensorFlow 2.18 with bundled CUDA
+# 3. GPU Environment Variables for Blackwell
 # ============================================================================
-# TensorFlow 2.18.0[and-cuda] bundles CUDA 12.5, cuDNN 9.x, and other libraries.
-# These are installed in the site-packages/nvidia/ directory.
-# We set LD_LIBRARY_PATH to ensure TensorFlow finds its bundled libraries.
-#
-# Environment variables:
-# - TF_FORCE_GPU_ALLOW_GROWTH: Prevent TF from allocating all GPU memory at start
-# - TF_CPP_MIN_LOG_LEVEL: Reduce log verbosity (0=all, 1=info, 2=warnings, 3=errors)
-# - TF_ENABLE_ONEDNN_OPTS: Disable oneDNN for consistent results
-# - NVIDIA_VISIBLE_DEVICES: Allow nvidia-container-toolkit to pass GPU access
-# - NVIDIA_DRIVER_CAPABILITIES: Request compute and utility capabilities
-# Core TensorFlow GPU settings
+# NGC container handles most CUDA setup, but we add MaSIF-specific settings
 ENV TF_FORCE_GPU_ALLOW_GROWTH=true
 ENV TF_CPP_MIN_LOG_LEVEL=2
 ENV TF_ENABLE_ONEDNN_OPTS=0
-
-# NVIDIA container toolkit settings
-ENV NVIDIA_VISIBLE_DEVICES=all
-ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
-
-# XLA and CUDA settings for Blackwell GPU compatibility (Driver 580+)
-# Disable XLA JIT compilation which can cause issues with newer architectures
-ENV TF_XLA_FLAGS="--tf_xla_auto_jit=-1"
-ENV XLA_FLAGS="--xla_gpu_enable_triton_gemm=false"
-
-# CUDA settings for driver compatibility
-ENV CUDA_CACHE_DISABLE=1
-ENV TF_GPU_ALLOCATOR=cuda_malloc_async
-
-# Set LD_LIBRARY_PATH to TensorFlow's bundled CUDA libraries
-# This ensures TensorFlow uses its own CUDA 12.5 instead of system CUDA
-ENV LD_LIBRARY_PATH="/masif_venv/lib/python3.12/site-packages/nvidia/cublas/lib:/masif_venv/lib/python3.12/site-packages/nvidia/cuda_cupti/lib:/masif_venv/lib/python3.12/site-packages/nvidia/cuda_nvrtc/lib:/masif_venv/lib/python3.12/site-packages/nvidia/cuda_runtime/lib:/masif_venv/lib/python3.12/site-packages/nvidia/cudnn/lib:/masif_venv/lib/python3.12/site-packages/nvidia/cufft/lib:/masif_venv/lib/python3.12/site-packages/nvidia/curand/lib:/masif_venv/lib/python3.12/site-packages/nvidia/cusolver/lib:/masif_venv/lib/python3.12/site-packages/nvidia/cusparse/lib:/masif_venv/lib/python3.12/site-packages/nvidia/nccl/lib:/masif_venv/lib/python3.12/site-packages/nvidia/nvjitlink/lib"
 
 # ============================================================================
 # 5. Install MSMS (Molecular Surface Computation)
@@ -284,13 +243,13 @@ ENV PATH="/usr/local/bin:${PATH}"
 # 9. Install PyMesh (Mesh Operations)
 # ============================================================================
 # PyMesh wheel was built in Stage 1 using Ubuntu 22.04 (GCC 11) with Python 3.12.
-# Copy and install into the masif_venv (also Python 3.12).
+# NGC container uses Python 3.12.3 which is compatible.
 WORKDIR /opt
 
 # Copy PyMesh wheel from builder stage
 COPY --from=pymesh-builder /tmp/pymesh2-*.whl /tmp/
 
-# Install PyMesh into the masif_venv
+# Install PyMesh into NGC's Python environment
 # Patch pymesh's __init__.py to fix NumPy 2.0 compatibility
 # (numpy.testing.Tester was removed in NumPy 2.0)
 RUN pip install /tmp/pymesh2-*.whl && \
@@ -313,19 +272,16 @@ WORKDIR /
 # - Removed hardcoded developer paths from shell scripts
 RUN git clone https://github.com/laastos/masif.git
 
-# Apply GPU configuration fixes for Blackwell and newer NVIDIA drivers (580+)
-# Create a GPU setup module that configures TensorFlow for optimal GPU usage
+# Apply GPU configuration for MaSIF with NGC TensorFlow
+# NGC container already has Blackwell support, we just need TF v1 compat mode
 RUN echo 'import os\n\
-# Configure GPU settings before TensorFlow import\n\
+# Reduce TensorFlow logging verbosity\n\
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")\n\
-os.environ.setdefault("TF_FORCE_GPU_ALLOW_GROWTH", "true")\n\
-os.environ.setdefault("TF_XLA_FLAGS", "--tf_xla_auto_jit=-1")\n\
-os.environ.setdefault("XLA_FLAGS", "--xla_gpu_enable_triton_gemm=false")\n\
 \n\
 import tensorflow.compat.v1 as tf\n\
 tf.disable_eager_execution()\n\
 \n\
-# Configure GPU memory growth\n\
+# Configure GPU memory growth to avoid OOM errors\n\
 try:\n\
     gpus = tf.config.experimental.list_physical_devices("GPU")\n\
     if gpus:\n\
@@ -340,7 +296,7 @@ except Exception as e:\n\
              /masif/source/masif_modules/MaSIF_ppi_search.py \
              /masif/source/masif_modules/MaSIF_ligand.py; do \
         if [ -f "$f" ]; then \
-            sed -i '1i import gpu_setup  # GPU configuration for Blackwell/Driver 580+' "$f"; \
+            sed -i '1i import gpu_setup  # GPU configuration for NGC TensorFlow' "$f"; \
         fi; \
     done
 
