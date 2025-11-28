@@ -252,8 +252,10 @@ COPY --from=pymesh-builder /tmp/pymesh2-*.whl /tmp/
 # Install PyMesh into NGC's Python environment
 # Patch pymesh's __init__.py to fix NumPy 2.0 compatibility
 # (numpy.testing.Tester was removed in NumPy 2.0)
+# Note: Must patch before importing since numpy.testing.Tester was removed in NumPy 2.0
 RUN pip install /tmp/pymesh2-*.whl && \
-    PYMESH_INIT=$(python -c "import sys; print([p for p in sys.path if 'site-packages' in p][0])")/pymesh/__init__.py && \
+    PYMESH_LOC=$(pip show pymesh2 | grep Location | awk '{print $2}') && \
+    PYMESH_INIT="$PYMESH_LOC/pymesh/__init__.py" && \
     sed -i '/from numpy.testing import Tester/d' "$PYMESH_INIT" && \
     sed -i '/test = Tester().test/d' "$PYMESH_INIT" && \
     python -c "import pymesh; print('PyMesh installed successfully')" && \
