@@ -1,7 +1,14 @@
-# Installing the masif pymol plugin. 
+# Installing the MaSIF PyMOL Plugin
 
+## Prerequisites
 
+For full functionality (including patch visualization), install NetworkX:
 
+```bash
+pip install networkx
+```
+
+## Installation
 
 To install the plugin go to the Plugin -> Plugin Manager window in PyMOL and choose the Install new plugin tab:
 
@@ -29,6 +36,27 @@ and then open them using the command (inside pymol):
 loadply 4ETP_A.ply
 ```
 
+## Available Commands
+
+After installation, the following commands are available:
+
+### Surface Loading
+- `loadply filename.ply` - Load PLY surface with all features
+- `loaddots filename` - Load surface as dot representation
+- `loadgiface filename.ply` - Load interface with silhouette
+
+### Patch Visualization
+- `loadpatches filename.ply` - Compute and visualize interaction patches
+- `loadpatches_json filename.ply, patches.json` - Load pre-computed patches
+- `showpatch N` - Show/hide patch N
+- `listpatches` - List loaded patch data
+
+Example:
+```
+loadpatches protein.ply, top_k=50, radius=9.0, mode=spheres
+```
+
+See the [PyMOL Plugin Guide](docs/pymol-plugin.md) for detailed usage.
 
 ## Troubleshooting the plugin installation.
 

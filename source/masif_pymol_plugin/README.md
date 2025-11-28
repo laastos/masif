@@ -21,9 +21,50 @@ This plugin was used to make all the figures in the MaSIF paper.
 
 After installation, the following commands are available in PyMOL:
 
+### Surface Loading Commands
+
 - `loadply filename.ply` - Load a PLY surface file with all features
 - `loaddots filename` - Load surface as dot representation
 - `loadgiface filename.ply` - Load interface with silhouette highlighting
+
+### Patch Visualization Commands
+
+- `loadpatches filename.ply` - Compute and visualize interaction patches on-the-fly
+- `loadpatches_json filename.ply, patches.json` - Load pre-computed patches from JSON
+- `showpatch N` - Show patch number N
+- `showpatch N, 0` - Hide patch number N
+- `listpatches` - List all loaded patch data
+
+#### Patch Visualization Examples
+
+```
+# Load top 50 patches with 9Å radius, visualized as spheres
+loadpatches protein.ply, top_k=50, radius=9.0, mode=spheres
+
+# Load patches visualized as mesh triangles
+loadpatches protein.ply, top_k=100, radius=9.0, mode=mesh
+
+# Load pre-computed patches from JSON
+loadpatches_json protein.ply, patch_results.json, mode=mesh
+
+# Save computed patches to JSON for later use
+loadpatches protein.ply, top_k=100, save_json=patches.json
+
+# Show/hide individual patches
+showpatch 5       # Show patch 5
+showpatch 5, 0    # Hide patch 5
+
+# Toggle all patches
+disable patches_*
+enable patches_*
+```
+
+## Dependencies
+
+- **Python**: 3.9+ (uses relative imports for Python 3 compatibility)
+- **PyMOL**: 2.x and newer
+- **NumPy**: Required (usually bundled with PyMOL)
+- **NetworkX**: Required for patch computation (`pip install networkx`)
 
 ## Compatibility
 

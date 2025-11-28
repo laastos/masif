@@ -4,12 +4,20 @@ import os, math, re
 from pymol.cgo import *
 import os.path
 import numpy as np
+import random
+import json
+
 """
    loadPLY.py: This pymol function loads ply files into pymol.
     Pablo Gainza - LPDI STI EPFL 2016-2019
     This file is part of MaSIF.
     Released under an Apache License 2.0
+
+    Extended with patch visualization functionality.
 """
+
+# Global storage for loaded patch data
+_patch_data = {}
 colorDict = {
     "sky": [COLOR, 0.0, 0.76, 1.0],
     "sea": [COLOR, 0.0, 0.90, 0.5],
@@ -466,4 +474,338 @@ def load_giface(filename, color="white", name="giface", dotSize=0.2, lineSize=1.
     # obj.append(END)
     name = "giface_verts_" + filename
     cmd.load_cgo(obj, name, 1.0)
+
+
+# =============================================================================
+# PATCH VISUALIZATION FUNCTIONS
+# =============================================================================
+
+def generate_distinct_color(index, total=100):
+    """Generate a distinct color for patch visualization using HSV color space."""
+    import colorsys
+    hue = (index * 0.618033988749895) % 1.0  # Golden ratio for good distribution
+    saturation = 0.7 + (index % 3) * 0.1
+    value = 0.8 + (index % 2) * 0.15
+    r, g, b = colorsys.hsv_to_rgb(hue, saturation, value)
+    return [r, g, b]
+
+
+def _visualize_patch_spheres(verts, patch_indices, color, sphere_size=0.6):
+    """
+    Create CGO object for a patch visualized as spheres.
+
+    Args:
+        verts: Array of all vertex coordinates
+        patch_indices: List of vertex indices in the patch
+        color: [r, g, b] color values
+        sphere_size: Radius of spheres
+
+    Returns:
+        CGO object list
+    """
+    obj = []
+    obj.extend([COLOR, color[0], color[1], color[2]])
+
+    for vid in patch_indices:
+        x, y, z = verts[vid]
+        obj.extend([SPHERE, float(x), float(y), float(z), sphere_size])
+
+    return obj
+
+
+def _visualize_patch_mesh(verts, faces, patch_indices, color, normals=None):
+    """
+    Create CGO object for a patch visualized as mesh triangles.
+
+    Args:
+        verts: Array of all vertex coordinates
+        faces: Array of all face indices
+        patch_indices: List of vertex indices in the patch
+        color: [r, g, b] color values
+        normals: Optional array of vertex normals
+
+    Returns:
+        CGO object list
+    """
+    obj = []
+    patch_set = set(patch_indices)
+
+    for tri in faces:
+        # Only include triangles where all vertices are in the patch
+        if all(int(v) in patch_set for v in tri):
+            vert1 = verts[int(tri[0])]
+            vert2 = verts[int(tri[1])]
+            vert3 = verts[int(tri[2])]
+
+            obj.extend([BEGIN, TRIANGLES])
+            obj.extend([COLOR, color[0], color[1], color[2]])
+
+            if normals is not None:
+                na = normals[int(tri[0])]
+                nb = normals[int(tri[1])]
+                nc = normals[int(tri[2])]
+                obj.extend([NORMAL, float(na[0]), float(na[1]), float(na[2])])
+
+            obj.extend([VERTEX, float(vert1[0]), float(vert1[1]), float(vert1[2])])
+
+            if normals is not None:
+                obj.extend([NORMAL, float(nb[0]), float(nb[1]), float(nb[2])])
+
+            obj.extend([VERTEX, float(vert2[0]), float(vert2[1]), float(vert2[2])])
+
+            if normals is not None:
+                obj.extend([NORMAL, float(nc[0]), float(nc[1]), float(nc[2])])
+
+            obj.extend([VERTEX, float(vert3[0]), float(vert3[1]), float(vert3[2])])
+            obj.append(END)
+
+    return obj
+
+
+def load_patches(filename, top_k=100, radius=9.0, iface_cutoff=0.0,
+                 mode='spheres', sphere_size=0.6, save_json=None):
+    """
+    Load PLY file and compute/visualize top-K interaction patches.
+
+    Usage in PyMOL:
+        loadpatches protein.ply, top_k=50, radius=9.0, mode=spheres
+
+    Args:
+        filename: Path to PLY file
+        top_k: Number of top patches to visualize (default: 100)
+        radius: Geodesic radius in Angstroms (default: 9.0)
+        iface_cutoff: Minimum iface score for patch center (default: 0.0)
+        mode: Visualization mode - 'spheres' or 'mesh' (default: 'spheres')
+        sphere_size: Size of spheres in spheres mode (default: 0.6)
+        save_json: Optional path to save computed patches as JSON
+    """
+    global _patch_data
+
+    # Convert string parameters from PyMOL
+    top_k = int(top_k)
+    radius = float(radius)
+    iface_cutoff = float(iface_cutoff)
+    sphere_size = float(sphere_size)
+
+    from .simple_mesh import Simple_mesh
+
+    print(f"Loading mesh from {filename}...")
+    mesh = Simple_mesh()
+    mesh.load_mesh(filename)
+
+    verts = mesh.vertices
+    faces = mesh.faces
+
+    # Get normals if available
+    normals = None
+    if "vertex_nx" in mesh.get_attribute_names():
+        nx = mesh.get_attribute("vertex_nx")
+        ny = mesh.get_attribute("vertex_ny")
+        nz = mesh.get_attribute("vertex_nz")
+        normals = np.vstack([nx, ny, nz]).T
+
+    print(f"Mesh loaded: {len(verts)} vertices, {len(faces)} faces")
+    print(f"Computing top {top_k} patches with radius={radius}A...")
+
+    # Compute patches
+    patch_result = mesh.get_top_patches(
+        top_k=top_k,
+        radius=radius,
+        iface_cutoff=iface_cutoff
+    )
+
+    # Save to JSON if requested
+    if save_json:
+        with open(save_json, 'w') as f:
+            json.dump(patch_result, f, indent=2)
+        print(f"Saved patch data to {save_json}")
+
+    # Store for later use
+    base_name = os.path.basename(filename).replace('.ply', '')
+    _patch_data[base_name] = {
+        'mesh': mesh,
+        'patches': patch_result,
+        'verts': verts,
+        'faces': faces,
+        'normals': normals
+    }
+
+    # Visualize patches
+    group_name = f"patches_{base_name}"
+    patch_names = []
+
+    print(f"Visualizing {len(patch_result['centers'])} patches in '{mode}' mode...")
+
+    for i, (center, score, patch_verts) in enumerate(zip(
+            patch_result['centers'],
+            patch_result['scores'],
+            patch_result['vertex_indices'])):
+
+        color = generate_distinct_color(i, len(patch_result['centers']))
+
+        if mode == 'spheres':
+            obj = _visualize_patch_spheres(verts, patch_verts, color, sphere_size)
+            name = f"patch_{i+1}_spheres"
+        elif mode == 'mesh':
+            obj = _visualize_patch_mesh(verts, faces, patch_verts, color, normals)
+            name = f"patch_{i+1}_mesh"
+        else:
+            print(f"Unknown mode: {mode}. Using 'spheres'.")
+            obj = _visualize_patch_spheres(verts, patch_verts, color, sphere_size)
+            name = f"patch_{i+1}_spheres"
+
+        if obj:  # Only load if there's something to draw
+            cmd.load_cgo(obj, name, 1.0)
+            patch_names.append(name)
+
+    # Group all patches
+    if patch_names:
+        cmd.group(group_name, " ".join(patch_names))
+
+    print(f"Done. Created group '{group_name}' with {len(patch_names)} patches.")
+    print(f"Use 'disable {group_name}' to hide all patches.")
+    print(f"Use 'enable patch_N_*' to show specific patch N.")
+
+
+def load_patches_json(ply_filename, json_filename, mode='spheres', sphere_size=0.6):
+    """
+    Load patches from a pre-computed JSON file and visualize on PLY surface.
+
+    Usage in PyMOL:
+        loadpatches_json protein.ply, patch_results.json, mode=mesh
+
+    Args:
+        ply_filename: Path to PLY file (for vertex coordinates)
+        json_filename: Path to JSON file with patch data
+        mode: Visualization mode - 'spheres' or 'mesh' (default: 'spheres')
+        sphere_size: Size of spheres in spheres mode (default: 0.6)
+    """
+    global _patch_data
+
+    sphere_size = float(sphere_size)
+
+    from .simple_mesh import Simple_mesh
+
+    print(f"Loading mesh from {ply_filename}...")
+    mesh = Simple_mesh()
+    mesh.load_mesh(ply_filename)
+
+    verts = mesh.vertices
+    faces = mesh.faces
+
+    # Get normals if available
+    normals = None
+    if "vertex_nx" in mesh.get_attribute_names():
+        nx = mesh.get_attribute("vertex_nx")
+        ny = mesh.get_attribute("vertex_ny")
+        nz = mesh.get_attribute("vertex_nz")
+        normals = np.vstack([nx, ny, nz]).T
+
+    print(f"Loading patches from {json_filename}...")
+    with open(json_filename, 'r') as f:
+        patch_result = json.load(f)
+
+    # Store for later use
+    base_name = os.path.basename(ply_filename).replace('.ply', '')
+    _patch_data[base_name] = {
+        'mesh': mesh,
+        'patches': patch_result,
+        'verts': verts,
+        'faces': faces,
+        'normals': normals
+    }
+
+    # Visualize patches
+    group_name = f"patches_{base_name}"
+    patch_names = []
+
+    n_patches = len(patch_result.get('vertex_indices', []))
+    print(f"Visualizing {n_patches} patches in '{mode}' mode...")
+
+    for i, patch_verts in enumerate(patch_result['vertex_indices']):
+        color = generate_distinct_color(i, n_patches)
+
+        if mode == 'spheres':
+            obj = _visualize_patch_spheres(verts, patch_verts, color, sphere_size)
+            name = f"patch_{i+1}_spheres"
+        elif mode == 'mesh':
+            obj = _visualize_patch_mesh(verts, faces, patch_verts, color, normals)
+            name = f"patch_{i+1}_mesh"
+        else:
+            obj = _visualize_patch_spheres(verts, patch_verts, color, sphere_size)
+            name = f"patch_{i+1}_spheres"
+
+        if obj:
+            cmd.load_cgo(obj, name, 1.0)
+            patch_names.append(name)
+
+    # Group all patches
+    if patch_names:
+        cmd.group(group_name, " ".join(patch_names))
+
+    print(f"Done. Created group '{group_name}' with {len(patch_names)} patches.")
+
+
+def show_patch(patch_id, show=True):
+    """
+    Show or hide a specific patch.
+
+    Usage in PyMOL:
+        showpatch 5        # Show patch 5
+        showpatch 5, 0     # Hide patch 5
+
+    Args:
+        patch_id: Patch number (1-indexed)
+        show: Whether to show (True) or hide (False) the patch
+    """
+    patch_id = int(patch_id)
+    show = bool(int(show)) if isinstance(show, str) else bool(show)
+
+    pattern = f"patch_{patch_id}_*"
+
+    if show:
+        cmd.enable(pattern)
+        print(f"Showing patch {patch_id}")
+    else:
+        cmd.disable(pattern)
+        print(f"Hiding patch {patch_id}")
+
+
+def color_patch(patch_id, r=1.0, g=0.0, b=0.0):
+    """
+    Recolor a specific patch.
+
+    Usage in PyMOL:
+        colorpatch 5, 1.0, 0.0, 0.0   # Color patch 5 red
+
+    Args:
+        patch_id: Patch number (1-indexed)
+        r, g, b: RGB color values (0.0-1.0)
+    """
+    patch_id = int(patch_id)
+    r, g, b = float(r), float(g), float(b)
+
+    # PyMOL doesn't directly support recoloring CGO objects
+    # We need to recreate the object with new color
+    print(f"Note: To change patch color, you need to reload patches with new settings.")
+    print(f"Alternatively, use PyMOL's set_color and color commands on the group.")
+
+
+def list_patches():
+    """
+    List all loaded patch data.
+
+    Usage in PyMOL:
+        listpatches
+    """
+    global _patch_data
+
+    if not _patch_data:
+        print("No patches loaded. Use 'loadpatches' or 'loadpatches_json' first.")
+        return
+
+    for name, data in _patch_data.items():
+        n_patches = len(data['patches'].get('centers', []))
+        n_verts = len(data['verts'])
+        print(f"  {name}: {n_patches} patches, {n_verts} vertices")
 

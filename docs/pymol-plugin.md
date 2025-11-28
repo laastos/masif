@@ -7,6 +7,7 @@ The MaSIF PyMOL plugin enables visualization of protein molecular surfaces with 
 - [Installation](#installation)
 - [Loading Surfaces](#loading-surfaces)
 - [Understanding Surface Objects](#understanding-surface-objects)
+- [Patch Visualization](#patch-visualization)
 - [Color Schemes](#color-schemes)
 - [Advanced Usage](#advanced-usage)
 - [Troubleshooting](#troubleshooting)
@@ -124,6 +125,117 @@ enable iface_4ZQK_A
 enable pb_4ZQK_A
 set transparency, 0.5, pb_4ZQK_A
 ```
+
+---
+
+## Patch Visualization
+
+The plugin includes functionality to visualize interaction patches on protein surfaces. Patches are local surface regions centered on each vertex, computed using geodesic distances.
+
+### Dependencies
+
+Patch visualization requires NetworkX:
+```bash
+pip install networkx
+```
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `loadpatches` | Compute and visualize patches on-the-fly |
+| `loadpatches_json` | Load pre-computed patches from JSON file |
+| `showpatch` | Show/hide individual patches |
+| `listpatches` | List all loaded patch data |
+
+### Computing Patches On-the-fly
+
+```
+# Basic usage - top 100 patches with default settings
+loadpatches protein.ply
+
+# Customize parameters
+loadpatches protein.ply, top_k=50, radius=9.0, mode=spheres
+
+# Use mesh visualization (triangles instead of spheres)
+loadpatches protein.ply, top_k=50, radius=9.0, mode=mesh
+
+# Filter by iface score (only show patches with high interface probability)
+loadpatches protein.ply, top_k=50, iface_cutoff=0.5
+
+# Save computed patches to JSON for later use
+loadpatches protein.ply, top_k=100, save_json=patches.json
+```
+
+### Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `top_k` | 100 | Number of top patches to visualize |
+| `radius` | 9.0 | Geodesic radius in Angstroms |
+| `iface_cutoff` | 0.0 | Minimum iface score for patch center |
+| `mode` | spheres | Visualization: 'spheres' or 'mesh' |
+| `sphere_size` | 0.6 | Size of spheres (spheres mode only) |
+| `save_json` | None | Optional path to save patches as JSON |
+
+### Loading Pre-computed Patches
+
+If you have pre-computed patches in JSON format:
+
+```
+loadpatches_json protein.ply, patch_results.json
+loadpatches_json protein.ply, patch_results.json, mode=mesh
+```
+
+The JSON format follows this structure:
+```json
+{
+  "centers": [vertex_indices...],
+  "scores": [float_scores...],
+  "vertex_indices": [[patch_1_vertices], [patch_2_vertices], ...]
+}
+```
+
+### Managing Patches
+
+```
+# List all loaded patches
+listpatches
+
+# Show/hide individual patches
+showpatch 5        # Show patch 5
+showpatch 5, 0     # Hide patch 5
+
+# Toggle all patches using PyMOL wildcards
+disable patches_*  # Hide all patches
+enable patches_*   # Show all patches
+
+# Show only specific patch
+disable patches_*
+enable patch_3_*
+```
+
+### Visualization Modes
+
+**Spheres Mode** (`mode=spheres`):
+- Each vertex in the patch is shown as a colored sphere
+- Fast rendering, good for quick inspection
+- Distinct colors per patch for easy identification
+
+**Mesh Mode** (`mode=mesh`):
+- Patch region shown as colored triangles on the surface
+- More integrated appearance with the molecular surface
+- Only includes triangles where all vertices belong to the patch
+
+### Patch Scoring
+
+Patches are ranked by a weighted score based on surface features:
+- **iface**: Interface probability (weight: 1.0)
+- **charge**: Electrostatic potential (weight: 0.3)
+- **hphob**: Hydrophobicity (weight: 0.5)
+- **hbond**: Hydrogen bond potential (weight: 0.8)
+
+Higher scores indicate more likely protein-protein interaction sites.
 
 ---
 
